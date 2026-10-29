@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mini App</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --bg: var(--tg-theme-bg-color, #fff); --fg: var(--tg-theme-text-color, #111);
+          --card: var(--tg-theme-secondary-bg-color, #f2f3f5); --btn: var(--tg-theme-button-color, #2481cc);
+          --btnfg: var(--tg-theme-button-text-color, #fff); --hint: var(--tg-theme-hint-color, #777); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
+  .bal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .bal div { background: var(--card); border-radius: 12px; padding: 12px 8px; text-align: center; }
+  .bal b { display: block; font-size: 17px; margin-top: 4px; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+  h3 { margin: 0 0 10px; font-size: 16px; }
+  input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #8884; background: var(--bg);
+          color: var(--fg); font-size: 16px; margin-bottom: 10px; }
+  button { width: 100%; padding: 13px; border: 0; border-radius: 10px; background: var(--btn);
+           color: var(--btnfg); font-size: 16px; }
+  button:disabled { opacity: .5; }
+  .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #8882; font-size: 14px; }
+  .hint { color: var(--hint); font-size: 13px; margin-bottom: 8px; }
+  #msg { margin-top: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+  <div class="bal">
+    <div>🌟 Stars<b id="stars">–</b></div>
+    <div>🪙 TON<b id="ton">–</b></div>
+    <div>🇺🇿 So'm<b id="uzs">–</b></div>
+  </div>
+
+  <div class="card">
+    <h3>💳 Karta orqali to'ldirish</h3>
+    <div class="hint" id="cardinfo"></div>
+    <input id="amount" type="number" inputmode="numeric" placeholder="O'tkazgan summa (so'm)">
+    <input id="file" type="file" accept="image/*,application/pdf">
+    <button id="send">Chekni yuborish</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card">
+    <h3>📜 Tarix</h3>
+    <div id="hist">Yuklanmoqda…</div>
+  </div>
+
+<script>
+const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
+const H = { "X-Init-Data": tg.initData };
+const fmt = n => Number(n).toLocaleString("ru-RU");
+
+async function load() {
+  const r = await fetch("/api/me", { headers: H });
+  if (!r.ok) { document.body.innerHTML = "<p>Avval botda /start bosib ro'yxatdan o'ting.</p>"; return; }
+  const d = await r.json();
+  stars.textContent = fmt(d.stars);
+  ton.textContent = Number(d.ton).toFixed(4);
+  uzs.textContent = fmt(d.uzs);
+  cardinfo.textContent = `Karta: ${d.card} (${d.card_owner})`;
+  hist.innerHTML = d.history.length ? d.history.map(t =>
+    `<div class="row"><span>${t.t} · ${t.kind}</span><b>${Number(t.amount) > 0 ? "+" : ""}${Number(t.amount)} ${t.cur}</b></div>`
+  ).join("") : "Hali amallar yo'q.";
+}
+
+send.onclick = async () => {
+  if (!amount.value || !file.files[0]) { msg.textContent = "Summa va chekni kiriting."; return; }
+  send.disabled = true; msg.textContent = "Yuborilmoqda…";
+  const fd = new FormData();
+  fd.append("amount", amount.value); fd.append("file", file.files[0]);
+  const r = await fetch("/api/receipt", { method: "POST", headers: H, body: fd });
+  msg.textContent = r.ok ? "✅ Chek adminga yuborildi." : "❌ Xatolik, qayta urining.";
+  send.disabled = false;
+  if (r.ok) { amount.value = ""; file.value = ""; load(); }
+};
+load();
+</script>
+</body>
+</html>
