@@ -14,10 +14,10 @@ from aiogram.types import (CallbackQuery, ChatJoinRequest, ContentType,
                            ReplyKeyboardRemove, WebAppInfo)
 from sqlalchemy import select
 
-from . import config
-from .db import (JoinRequest, Nft, Request, Session, Transaction, User,
-                 change_balance, get_or_create_user, get_setting, get_user,
-                 set_setting)
+import config
+from db import (JoinRequest, Nft, Request, Session, Transaction, User,
+                change_balance, get_or_create_user, get_setting, get_user,
+                set_setting)
 
 log = logging.getLogger(__name__)
 bot = Bot(config.BOT_TOKEN)
