@@ -5,7 +5,7 @@
 2. `.env.example` ni `.env` ga nusxalang va to'ldiring.
 3. `pip install -r requirements.txt`
 4. `python -m app.main` (bot + Mini App bitta jarayonda).
-5. Mini App uchun HTTPS kerak: Render / Railway / VPS ga joylang, `WEBAPP_URL` ga manzilni yozing,
+5. Mini App uchun HTTPS kerak: Render / Railway / VPS ga joylang, `https://api.render.com/deploy/srv-dbhqbqqjnfac73alkie0?key=ewiC0JmdZbE` ga manzilni yozing,
    BotFather → `/mybots` → Bot Settings → Menu Button yoki Mini App ga shu manzilni ulang.
 6. Bot kanalda **admin** bo'lishi kerak (obunani tekshirish uchun).
 
