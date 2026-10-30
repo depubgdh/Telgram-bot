@@ -61,7 +61,7 @@ class A(StatesGroup):
 PANEL = KB([
     [B("⏳ Kutayotgan so'rovlar", "adm:pending")],
     [B("👤 Foydalanuvchi / hisobni o'zgartirish", "adm:find")],
-    [B("💱 Kurs va komissiyalar", "adm:settings")],
+    [B("💱 Kurs, Komissiya va Rekvizitlar", "adm:settings")],
     [B("🎁 NFT boshqaruvi", "adm:nfts")],
     [B("📢 Majburiy kanal", "adm:channel")],
     [B("📊 Statistika", "adm:stats")],
@@ -159,7 +159,7 @@ async def adm_find_do(m: Message, state: FSMContext):
 async def adm_bal(c: CallbackQuery):
     await c.answer()
     _, _, uid, sign = c.data.split(":")
-    cur_rows = [[B(cur, f"adm:cur:{uid}:{sign}:{cur}") for cur in ("UZS", "STARS", "TON", "UC")],
+    cur_rows = [[B(cur, f"adm:cur:{uid}:{sign}:{cur}") for cur in ("UZS", "STARS", "TON", "UC", "J_COIN")],
                 [B("⬅️ Orqaga", "adm:main")]]
     await show(c, f"Qaysi balansni {'oshiramiz' if sign == '+' else 'kamaytiramiz'}?", KB(cur_rows))
 
@@ -182,7 +182,7 @@ async def adm_bal_apply(m: Message, state: FSMContext):
     except (InvalidOperation, AssertionError):
         return await m.answer("To'g'ri musbat son kiriting.")
     cur = d["cur"]
-    if cur != "TON":
+    if cur not in ("TON", "J_COIN"):
         amt = Decimal(int(amt))
     if amt <= 0:
         return await m.answer("Miqdor 0 dan katta bo'lishi kerak.")
@@ -194,7 +194,7 @@ async def adm_bal_apply(m: Message, state: FSMContext):
         await s.commit()
     u = await get_u(d["uid"])
     await state.clear()
-    shown = fmt_ton(amt) if cur == "TON" else fmt(amt)
+    shown = fmt_ton(amt) if cur in ("TON", "J_COIN") else fmt(amt)
     try:
         await bot.send_message(u.tg_id, f"ℹ️ Hisobingiz admin tomonidan o'zgartirildi: "
                                         f"{'+' if delta > 0 else '-'}{shown} {cur}")
@@ -226,11 +226,14 @@ async def adm_ban(c: CallbackQuery):
     await show(c, await user_card(u), user_kb(u))
 
 
-# ------------------------------------------------------------ Kurs va komissiyalar
+# ------------------------------------------------------------ Kurs, Komissiya va Rekvizitlar
 LABELS = {
     "stars_uzs": "1 Star = so'm",
     "ton_uzs": "1 TON = so'm",
     "uc_uzs": "1 UC = so'm",
+    "j_rate": "1 J🧧 = so'm (Hozir: 1200)",
+    "admin_ton_wallet": "Admin TON hamyon manzili",
+    "admin_card_number": "Admin plastik karta raqami",
     "topup_card_fee": "Karta to'ldirish komissiyasi %",
     "withdraw_card_fee": "Kartaga yechish %",
     "withdraw_phone_fee": "Telefonga yechish %",
@@ -243,9 +246,10 @@ LABELS = {
 async def settings_view():
     rows = []
     for k, label in LABELS.items():
-        rows.append([B(f"{label}: {fmt_ton(await get_setting(k))}", f"adm:set:{k}")])
+        val = await get_str_setting(k, "Kiritilmagan")
+        rows.append([B(f"{label}: {val if k in ('admin_ton_wallet', 'admin_card_number') else fmt_ton(val)}", f"adm:set:{k}")])
     rows.append([B("⬅️ Panel", "adm:main")])
-    return "💱 <b>Kurs va komissiyalar</b>\nO'zgartirish uchun tanlang:", KB(rows)
+    return "💱 <b>Kurs, Komissiya va Rekvizitlar</b>\nO'zgartirish uchun tanlang:", KB(rows)
 
 
 @router.callback_query(F.data == "adm:settings")
@@ -264,19 +268,29 @@ async def adm_set(c: CallbackQuery, state: FSMContext):
         return
     await state.set_state(A.setting)
     await state.update_data(key=key)
-    await show(c, f"<b>{LABELS[key]}</b>\nHozirgi qiymat: {fmt_ton(await get_setting(key))}\n\nYangi qiymatni yuboring:",
+    current_val = await get_str_setting(key, "-")
+    await show(c, f"<b>{LABELS[key]}</b>\nHozirgi qiymat: {current_val}\n\nYangi qiymatni yuboring:",
                back("adm:settings"))
 
 
 @router.message(A.setting)
 async def adm_set_apply(m: Message, state: FSMContext):
     d = await state.get_data()
-    try:
-        v = Decimal((m.text or "").replace(",", ".").replace(" ", ""))
-        assert v >= 0
-    except (InvalidOperation, AssertionError):
-        return await m.answer("To'g'ri son kiriting.")
-    await set_setting(d["key"], fmt_ton(v))
+    key = d["key"]
+    val_text = (m.text or "").strip()
+    
+    if key in ("admin_ton_wallet", "admin_card_number"):
+        # Matnli rekvizitlar uchun
+        await set_setting(key, val_text)
+    else:
+        # Raqamli qiymatlar uchun
+        try:
+            v = Decimal(val_text.replace(",", ".").replace(" ", ""))
+            assert v >= 0
+            await set_setting(key, str(v))
+        except (InvalidOperation, AssertionError):
+            return await m.answer("To'g'ri son kiriting.")
+            
     await state.clear()
     text, markup = await settings_view()
     await m.answer("✅ Saqlandi.\n\n" + text, reply_markup=markup)
@@ -447,6 +461,7 @@ async def adm_stats(c: CallbackQuery):
         stars = await s.scalar(select(func.coalesce(func.sum(User.stars), 0)))
         ton = await s.scalar(select(func.coalesce(func.sum(User.ton), 0)))
         uc = await s.scalar(select(func.coalesce(func.sum(User.uc), 0)))
+        j_coin = await s.scalar(select(func.coalesce(func.sum(User.j_coin), 0)))
     await show(c, f"📊 <b>Statistika</b>\n\n👥 Foydalanuvchilar: {users} (bloklangan: {banned})\n"
                   f"⏳ Kutayotgan so'rovlar: {pend}\n\n<b>Foydalanuvchilar balansi yig'indisi:</b>\n"
-                  f"🇺🇿 {fmt(uzs)} so'm\n⭐️ {fmt(stars)} Stars\n🪙 {fmt_ton(ton)} TON\n🎮 {fmt(uc)} UC", back())
+                  f"🇺🇿 {fmt(uzs)} so'm\n⭐️ {fmt(stars)} Stars\n🪙 {fmt_ton(ton)} TON\n🧧 {fmt_ton(j_coin)} J🧧\n🎮 {fmt(uc)} UC", back())
