@@ -11,7 +11,7 @@
           --btnfg: var(--tg-theme-button-text-color, #fff); --hint: var(--tg-theme-hint-color, #777); }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
-  .bal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .bal { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
   .bal div { background: var(--card); border-radius: 12px; padding: 12px 8px; text-align: center; }
   .bal b { display: block; font-size: 17px; margin-top: 4px; }
   .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
@@ -30,6 +30,7 @@
   <div class="bal">
     <div>🌟 Stars<b id="stars">–</b></div>
     <div>🪙 TON<b id="ton">–</b></div>
+    <div>🧧 J🧧<b id="jcoin">–</b></div>
     <div>🇺🇿 So'm<b id="uzs">–</b></div>
   </div>
 
@@ -58,6 +59,7 @@ async function load() {
   const d = await r.json();
   stars.textContent = fmt(d.stars);
   ton.textContent = Number(d.ton).toFixed(4);
+  jcoin.textContent = Number(d.j_coin || 0).toFixed(2);
   uzs.textContent = fmt(d.uzs);
   cardinfo.textContent = `Karta: ${d.card} (${d.card_owner})`;
   hist.innerHTML = d.history.length ? d.history.map(t =>
