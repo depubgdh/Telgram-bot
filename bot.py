@@ -59,9 +59,8 @@ async def is_subscribed(tg_id: int) -> bool:
         m = await bot.get_chat_member(ch, tg_id)
         if m.status in ("member", "administrator", "creator"):
             return True
-    except Exception as e:  # kanal topilmasa / bot admin emas
+    except Exception as e:
         log.warning("subscription check failed: %s", e)
-    # join request tashlagan ham obuna bo'lgan deb hisoblanadi
     async with Session() as s:
         row = (await s.execute(select(JoinRequest).where(JoinRequest.tg_id == tg_id))).first()
     return row is not None
@@ -126,7 +125,7 @@ def back_kb(to="m:main") -> InlineKeyboardMarkup:
 async def start(m: Message, state: FSMContext):
     await state.clear()
     u = await get_or_create_user(m.from_user.id, m.from_user.username)
-    await is_admin(m.from_user)  # admin bo'lsa, ID si eslab qolinadi
+    await is_admin(m.from_user)
     if u.banned:
         return await m.answer("⛔ Hisobingiz bloklangan.")
     if not await is_subscribed(m.from_user.id):
@@ -185,7 +184,6 @@ async def got_contact(m: Message):
 
 
 async def guard(c: CallbackQuery) -> User | None:
-    """Har bir amaldan oldin: ro'yxatdan o'tgan, bloklanmagan, obuna bo'lgan."""
     u = await get_user(c.from_user.id)
     if not u or not u.phone or u.banned or not await is_subscribed(c.from_user.id):
         await c.answer("Avval /start bosing", show_alert=True)
@@ -302,7 +300,7 @@ async def buy_do(m: Message, state: FSMContext):
 
 
 # ---------------------------------------------------------------- Almashtirish
-CONV = {  # (from, to)
+CONV = {
     "uzs_ton": ("UZS", "TON"), "ton_uzs": ("TON", "UZS"),
     "uzs_stars": ("UZS", "STARS"), "stars_uzs": ("STARS", "UZS"),
 }
@@ -383,15 +381,18 @@ async def tp_method(c: CallbackQuery, state: FSMContext):
     if method == "card":
         await state.set_state(S.topup_amount)
         fee = await get_setting("topup_card_fee")
+        card_num = getattr(config, "CARD_NUMBER", "Kiritilmagan")
+        card_owner = getattr(config, "CARD_OWNER", "Kiritilmagan")
         return await c.message.edit_text(
-            f"Karta: <code>{config.CARD_NUMBER}</code>\nEgasi: {config.CARD_OWNER}\n\n"
+            f"Karta: <code>{card_num}</code>\nEgasi: {card_owner}\n\n"
             f"Necha so'm o'tkazmoqchisiz? (komissiya {fee}%)", reply_markup=back_kb("m:topup"))
     if method == "stars":
         await state.set_state(S.topup_amount)
         return await c.message.edit_text("Necha ⭐ Stars bilan to'ldirasiz? (kamida 1)", reply_markup=back_kb("m:topup"))
     if method == "ton":
         await state.set_state(S.topup_amount)
-        return await c.message.edit_text("Necha TON yuborasiz?", reply_markup=back_kb("m:topup"))
+        ton_wallet = getattr(config, "TON_WALLET", "Kiritilmagan")
+        return await c.message.edit_text(f"Necha TON yuborasiz?\nTON Hamyon: <code>{ton_wallet}</code>", reply_markup=back_kb("m:topup"))
     if method == "nft":
         for a in await admin_ids():
             await bot.send_message(a, f"🎁 NFT orqali to'ldirish so'rovi: {c.from_user.id} @{c.from_user.username}")
@@ -421,8 +422,9 @@ async def tp_amount(m: Message, state: FSMContext):
     if method == "ton":
         await state.clear()
         memo = f"U{m.from_user.id}"
+        ton_wallet = getattr(config, "TON_WALLET", "Kiritilmagan")
         return await m.answer(
-            f"Manzil: <code>{config.TON_WALLET}</code>\nIzoh (MEMO): <code>{memo}</code>\nMiqdor: {amt} TON\n\n"
+            f"Manzil: <code>{ton_wallet}</code>\nIzoh (MEMO): <code>{memo}</code>\nMiqdor: {amt} TON\n\n"
             "Izohni albatta yozing! To'lov tushgach balans avtomatik oshadi "
             "(TON tekshiruvi sozlangan bo'lsa, aks holda admin tasdiqlaydi).")
 
@@ -437,7 +439,6 @@ async def tp_receipt(m: Message, state: FSMContext):
 
 
 async def create_card_topup(tg_id: int, amount: Decimal, file_id: str):
-    """Bot ham, Mini App ham shu funksiyani ishlatadi."""
     u = await get_user(tg_id)
     fee_pct = await get_setting("topup_card_fee")
     fee = (amount * fee_pct / 100).quantize(Decimal(1))
@@ -519,12 +520,17 @@ async def wd_amount(m: Message, state: FSMContext):
     feekey = {"nft": "withdraw_nft_fee", "card": "withdraw_card_fee", "phone": "withdraw_phone_fee"}.get(method)
     fee = (amt * await get_setting(feekey) / 100).quantize(Decimal(1)) if feekey else Decimal(0)
     u = await get_user(m.from_user.id)
-    if Decimal(getattr(u, cur.lower())) < amt + fee:   # balans tekshiruvi
+    if Decimal(getattr(u, cur.lower())) < amt + fee:
         return await m.answer(f"❌ Balans yetarli emas. Kerak: {fmt(amt + fee)} {cur}")
     await state.update_data(amount=str(amt), fee=str(fee), cur=cur)
     await state.set_state(S.withdraw_details)
-    ask = {"card": "Karta raqamingiz:", "phone": "Telefon raqamingiz:", "uc": "PUBG o'yinchi ID raqamingiz:",
-           "stars": "Stars qabul qiladigan @username:", "nft": "NFT yuboriladigan @username:"}[method]
+    ask = {
+        "card": "Plastik karta raqamingiz va karta egasining F.I.Sh (CARD_NUMBER va Egasi):",
+        "phone": "Telefon raqamingiz:",
+        "uc": "PUBG o'yinchi ID raqamingiz:",
+        "stars": "Stars qabul qiladigan @username:",
+        "nft": "NFT yuboriladigan @username yoki TON Hamyon manzili (WALLET_ADDRESS):"
+    }[method]
     await m.answer(f"Komissiya: {fmt(fee)} {cur}\n{ask}")
 
 
@@ -534,7 +540,6 @@ async def wd_details(m: Message, state: FSMContext):
     amt, fee, cur = Decimal(d["amount"]), Decimal(d["fee"]), d["cur"]
     u = await get_user(m.from_user.id)
     async with Session() as s:
-        # mablag' so'rov paytida ushlab qo'yiladi; rad etilsa qaytariladi
         if not await change_balance(s, u.id, cur, -(amt + fee), "withdraw", fee=fee, note=f"hold:{d['method']}"):
             return await m.answer("❌ Balans yetarli emas.")
         r = Request(user_id=u.id, kind="withdraw", method=d["method"], currency=cur,
@@ -548,7 +553,7 @@ async def wd_details(m: Message, state: FSMContext):
     for a in await admin_ids():
         await bot.send_message(a, f"💸 <b>Yechish #{r.id}</b>\n👤 {u.tg_id} @{u.username} {u.phone}\n"
                                   f"Tur: {WD[d['method']]}\nMiqdor: {fmt(amt)} {cur} (komissiya {fmt(fee)})\n"
-                                  f"Rekvizit: {m.text}", reply_markup=kb)
+                                  f"Rekvizit (Karta/Wallet): {m.text}", reply_markup=kb)
     await m.answer("✅ So'rov adminga yuborildi.")
 
 
@@ -591,12 +596,12 @@ async def admin_decide(c: CallbackQuery):
         u = await s.get(User, r.user_id)
         if act == "ok":
             r.status = "approved"
-            if r.kind == "topup":  # komissiya ayriladi, qolgani balansga
+            if r.kind == "topup":
                 await change_balance(s, u.id, r.currency, r.amount - r.fee, "topup", fee=r.fee, note=f"karta #{r.id}")
             msg = "✅ So'rovingiz tasdiqlandi."
         else:
             r.status = "rejected"
-            if r.kind == "withdraw":  # ushlab turilgan mablag' qaytariladi
+            if r.kind == "withdraw":
                 await change_balance(s, u.id, r.currency, r.amount + r.fee, "refund", note=f"rad #{r.id}")
             msg = "❌ So'rovingiz rad etildi (pul tushmagan yoki ma'lumot noto'g'ri)."
         await s.commit()
@@ -607,7 +612,6 @@ async def admin_decide(c: CallbackQuery):
 
 @router.message(Command("set"))
 async def cmd_set(m: Message):
-    """/set stars_uzs 230  — kurs va komissiyalarni qo'lda o'zgartirish."""
     if not await is_admin(m.from_user):
         return
     p = m.text.split()
@@ -620,7 +624,6 @@ async def cmd_set(m: Message):
 
 @router.message(Command("addnft"))
 async def cmd_addnft(m: Message):
-    """Rasmga caption yozing: /addnft Nomi | narx_som | narx_stars"""
     if not await is_admin(m.from_user):
         return
     text = (m.caption or m.text or "").replace("/addnft", "").strip()
@@ -642,7 +645,6 @@ async def cmd_addnft_photo(m: Message):
 
 @router.message(Command("user"))
 async def cmd_user(m: Message):
-    """/user <tg_id> — foydalanuvchi va uning tarixi."""
     if not await is_admin(m.from_user):
         return
     try:
@@ -671,7 +673,6 @@ async def cmd_ban(m: Message):
 
 @router.message(Command("credit"))
 async def cmd_credit(m: Message):
-    """/credit <tg_id> <UZS|STARS|TON|UC> <miqdor> — qo'lda balans qo'shish (NFT/TON uchun)."""
     if not await is_admin(m.from_user):
         return
     try:
