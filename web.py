@@ -53,7 +53,7 @@ async def me(x_init_data: str = Header(...)):
         tx = (await s.execute(select(Transaction).where(Transaction.user_id == u.id)
                               .order_by(Transaction.id.desc()).limit(30))).scalars().all()
     return {
-        "stars": u.stars, "ton": str(u.ton), "uzs": u.uzs, "uc": u.uc,
+        "stars": u.stars, "ton": str(u.ton), "j_coin": str(getattr(u, "j_coin", 0)), "uzs": u.uzs, "uc": u.uc,
         "card": config.CARD_NUMBER, "card_owner": config.CARD_OWNER,
         "history": [{"t": f"{t.created_at:%d.%m %H:%M}", "kind": t.kind,
                      "amount": str(t.amount), "cur": t.currency} for t in tx],
