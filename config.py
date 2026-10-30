@@ -1,3 +1,4 @@
+# ==================== CONFIG.PY ====================
 import os
 from dotenv import load_dotenv
 
@@ -44,6 +45,7 @@ DEFAULT_SETTINGS = {
     "stars_uzs": "230",        # 1 Star = necha so'm (qo'lda)
     "ton_uzs": "35000",        # 1 TON = necha so'm (qo'lda)
     "uc_uzs": "220",           # 1 UC = necha so'm
+    "j_rate": "1200",          # 1 J🧧 = 1200 so'm
     "topup_card_fee": "0.6",   # % karta orqali to'ldirish
     "withdraw_card_fee": "1.5",
     "withdraw_phone_fee": "0.3",
