@@ -29,6 +29,7 @@ class User(Base):
     uzs: Mapped[int] = mapped_column(BigInteger, default=0)
     stars: Mapped[int] = mapped_column(BigInteger, default=0)
     ton: Mapped[Decimal] = mapped_column(Numeric(20, 9), default=Decimal(0))
+    j_coin: Mapped[Decimal] = mapped_column(Numeric(20, 9), default=Decimal(0))  # J🧧 valyutasi uchun balans
     uc: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -98,7 +99,7 @@ async def init_db():
 async def get_setting(key: str) -> Decimal:
     async with Session() as s:
         row = await s.get(Setting, key)
-        return Decimal(row.value if row else DEFAULT_SETTINGS[key])
+        return Decimal(row.value if row else DEFAULT_SETTINGS.get(key, "0"))
 
 
 async def set_setting(key: str, value: str):
@@ -140,10 +141,18 @@ async def change_balance(s: AsyncSession, user_id: int, currency: str, delta: De
     """Balansni o'zgartiradi va tarixga yozadi. Yetarli mablag' bo'lmasa False."""
     u = await s.get(User, user_id, with_for_update=True)
     field = currency.lower()
-    cur = Decimal(getattr(u, field))
+    if field == "j_coin" or field == "j_rate":
+        field = "j_coin"
+        
+    cur = Decimal(getattr(u, field, Decimal(0)))
     if cur + delta < 0:
         return False
-    setattr(u, field, (cur + delta) if field == "ton" else int(cur + delta))
-    s.add(Transaction(user_id=user_id, kind=kind, currency=currency,
+        
+    if field in ("ton", "j_coin"):
+        setattr(u, field, (cur + delta))
+    else:
+        setattr(u, field, int(cur + delta))
+        
+    s.add(Transaction(user_id=user_id, kind=kind, currency=currency.upper(),
                       amount=delta, fee=fee, note=note))
     return True
