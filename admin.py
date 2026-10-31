@@ -95,7 +95,7 @@ PANEL = KB([
     [B("🎁 NFT boshqaruvi", "adm:nfts")],
     [B("🎉 Bonus yuborish", "adm:bonus"), B("📣 Reklama tarqatish", "adm:ad")],
     [B("📢 Majburiy kanal", "adm:channel"), B("📈 Statistika", "adm:stats")],
-    [B("🖼 Mini App reklamasi", "adm:mb")],
+    [B("🖼 Mini App reklamasi", "adm:mb"), B("🎟 UC vaucherlar", "adm:uc")],
     [B("⬅️ Asosiy menyu", "m:main")],
 ])
 

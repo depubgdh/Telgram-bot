@@ -10,6 +10,7 @@ from db import init_db
 from web import app
 import admin  # noqa: F401  (admin panel handlerlarini ro'yxatdan o'tkazadi)
 import features  # noqa: F401  (foydalanuvchi bo'limlari)
+import uc  # noqa: F401  (UC vaucher ombori)
 
 
 async def main():

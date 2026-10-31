@@ -27,6 +27,8 @@ from db import (Application, Bonus, BonusClaim, Request, Session, Transaction,
                 User, UserItem, change_balance, get_setting, get_str_setting,
                 get_user, set_setting)
 
+from uc import uc_kb  # noqa: E402
+
 router = Router()
 dp.include_router(router)
 
@@ -306,7 +308,7 @@ async def uc_go(c: CallbackQuery, state: FSMContext):
     await state.clear()
     await notify_admins(f"🎮 <b>UC buyurtma #{r.id}</b>\n👤 {u.tg_id} @{u.username or '-'} {u.phone}\n"
                         f"UC: <b>{q}</b>\nPUBG ID: <code>{pid}</code>\nTo'langan: {fmt(cost)} so'm",
-                        KB([[B("✅ Yetkazildi", f"ad:ok:{r.id}"), B("❌ Rad etish", f"ad:no:{r.id}")]]))
+                        uc_kb(r.id))
     await edit_or_send(c, f"✅ Buyurtma #{r.id} qabul qilindi!\n{q} UC → ID <code>{pid}</code>\n"
                           "Admin tasdiqlagach, sizga xabar keladi.", back_kb())
 

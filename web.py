@@ -28,6 +28,8 @@ from bot import (KINDS, WD, bot, create_card_topup, fmt, fmt_ton,
 from db import (Banner, Nft, Request, Session, Transaction, User, UserItem,
                 change_balance, get_setting, get_user, pay_referral)
 
+from uc import uc_kb  # noqa: E402
+
 app = FastAPI()
 INDEX = Path(__file__).resolve().parent / "index.html"
 UC_PACKS = [60, 120, 180, 240, 325]
@@ -397,9 +399,7 @@ async def uc_order(body: UcIn, x_init_data: str = Header(...)):
         await s.commit()
     await tell_admins(f"🎮 <b>UC buyurtma #{r.id}</b> (Mini App)\n👤 {u.tg_id} @{u.username or '-'} {u.phone}\n"
                       f"UC: <b>{body.qty}</b>\nPUBG ID: <code>{pid}</code>\nTo'langan: {fmt(cost)} so'm",
-                      InlineKeyboardMarkup(inline_keyboard=[[
-                          InlineKeyboardButton(text="✅ Yetkazildi", callback_data=f"ad:ok:{r.id}"),
-                          InlineKeyboardButton(text="❌ Rad etish", callback_data=f"ad:no:{r.id}")]]))
+                      uc_kb(r.id))
     return {"ok": True, "msg": f"Buyurtma #{r.id} qabul qilindi. Admin tasdiqlagach xabar keladi."}
 
 

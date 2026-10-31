@@ -135,6 +135,17 @@ class Bonus(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class UcCode(Base):
+    """PUBG UC vaucher kodlari ombori (admin yuklaydi)."""
+    __tablename__ = "uc_codes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pack: Mapped[int] = mapped_column(Integer, index=True)            # 60 / 120 / 325 ...
+    code: Mapped[str] = mapped_column(String(80), unique=True)
+    status: Mapped[str] = mapped_column(String(10), default="free")   # free | reserved | used | bad
+    request_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class Banner(Base):
     """Mini App'dagi reklama bannerlari (admin Telegram orqali rasm yuboradi)."""
     __tablename__ = "banners"
