@@ -2,80 +2,304 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mini App</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root { --bg: var(--tg-theme-bg-color, #fff); --fg: var(--tg-theme-text-color, #111);
-          --card: var(--tg-theme-secondary-bg-color, #f2f3f5); --btn: var(--tg-theme-button-color, #2481cc);
-          --btnfg: var(--tg-theme-button-text-color, #fff); --hint: var(--tg-theme-hint-color, #777); }
-  * { box-sizing: border-box; }
-  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
-  .bal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-  .bal div { background: var(--card); border-radius: 12px; padding: 12px 8px; text-align: center; }
-  .bal b { display: block; font-size: 17px; margin-top: 4px; }
-  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
-  h3 { margin: 0 0 10px; font-size: 16px; }
-  input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #8884; background: var(--bg);
-          color: var(--fg); font-size: 16px; margin-bottom: 10px; }
-  button { width: 100%; padding: 13px; border: 0; border-radius: 10px; background: var(--btn);
-           color: var(--btnfg); font-size: 16px; }
-  button:disabled { opacity: .5; }
-  .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #8882; font-size: 14px; }
-  .hint { color: var(--hint); font-size: 13px; margin-bottom: 8px; }
-  #msg { margin-top: 8px; font-size: 14px; }
+:root{
+  --bg:#EEF1F0; --card:#FFFFFF; --ink:#13201F; --mute:#66787A; --line:#DCE3E2;
+  --teal:#0B3D3A; --teal2:#14605A; --gold:#F0A500; --gold-ink:#3A2900;
+  --pos:#12805C; --neg:#C73E2B; --field:#F6F8F8;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66}
+}
+:root[data-theme="dark"]{--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:0 16px calc(84px + env(safe-area-inset-bottom));min-height:100vh}
+h2{font-size:18px;margin:22px 0 10px;font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.hero{margin:14px 0 12px;background:var(--teal);color:#F2FAF8;border-radius:22px;padding:20px 18px 16px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;
+  background:repeating-radial-gradient(circle at center,transparent 0 9px,rgba(240,165,0,.28) 9px 11px);pointer-events:none}
+.hero small{opacity:.75;font-size:13px}
+.hero .big{font-size:36px;font-weight:800;letter-spacing:-.5px;margin:2px 0 14px}
+.hero .big span{font-size:16px;font-weight:600;opacity:.8;margin-left:6px}
+.coins{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.coin{background:rgba(255,255,255,.1);border-radius:12px;padding:9px 10px;min-width:0}
+.coin b{display:block;font-size:17px;overflow:hidden;text-overflow:ellipsis}
+.coin i{font-style:normal;font-size:12px;opacity:.75}
+.banner{margin-top:12px;background:#FFF3D6;color:var(--gold-ink);border-radius:12px;padding:10px 12px;font-size:14px}
+
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;border:1px solid var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mute{color:var(--mute);font-size:14px}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.hist .row{padding:10px 0;border-bottom:1px solid var(--line)}
+.hist .row:last-child{border:0}
+.empty{text-align:center;color:var(--mute);padding:26px 10px}
+
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav[hidden]{display:none}
+nav button{background:none;border:0;color:var(--mute);padding:6px 2px;border-radius:10px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .ic{font-size:21px;line-height:1}
+nav button[aria-selected="true"]{color:var(--teal2);font-weight:700}
+
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;margin:14px 0 12px;gap:3px}
+.seg button{flex:1;border:0;background:none;color:var(--mute);padding:9px 2px;border-radius:9px;font-size:14px}
+.seg button[aria-selected="true"]{background:var(--teal);color:#fff;font-weight:600}
+
+label{display:block;font-size:14px;color:var(--mute);margin:12px 0 5px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:11px;padding:12px}
+.btn{width:100%;margin-top:14px;border:0;border-radius:12px;padding:14px;font-weight:700;background:var(--gold);color:var(--gold-ink)}
+.btn.alt{background:var(--teal);color:#fff}
+.btn:disabled{opacity:.55}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 12px;border-radius:999px;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+.copy{display:flex;gap:8px;align-items:center;background:var(--field);border:1px dashed var(--mute);border-radius:11px;padding:11px 12px;margin-top:8px;word-break:break-all}
+.copy button{margin-left:auto;border:0;background:var(--teal);color:#fff;border-radius:8px;padding:7px 11px;flex:none}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nft{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.nft .ph{aspect-ratio:1;background:var(--field) center/cover no-repeat;display:grid;place-items:center;font-size:42px}
+.nft .in{padding:10px}
+.nft h3{margin:0 0 4px;font-size:15px}
+.attr{font-size:12px;color:var(--mute);line-height:1.5}
+.price{font-weight:700;margin:6px 0 8px}
+.nft .btn{margin:0;padding:10px;font-size:14px}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.sheet .ph{width:100%;aspect-ratio:16/10;border-radius:12px;background:var(--field) center/cover no-repeat;margin-bottom:10px}
+.pay{display:grid;gap:8px;margin-top:12px}
+.pay button{display:flex;justify-content:space-between;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
+.pay button:disabled{opacity:.45}
+
+#toast{position:fixed;left:16px;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:12px;z-index:20;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+#toast.show{opacity:1;transform:none}
+#toast.err{background:var(--neg);color:#fff}
+.spin{text-align:center;padding:40px;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-  <div class="bal">
-    <div>🌟 Stars<b id="stars">–</b></div>
-    <div>J🧧<b id="jv">–</b></div>
-    <div>🇺🇿 So'm<b id="uzs">–</b></div>
-  </div>
-
-  <div class="card">
-    <h3>💳 Karta orqali to'ldirish</h3>
-    <div class="hint" id="cardinfo"></div>
-    <input id="amount" type="number" inputmode="numeric" placeholder="O'tkazgan summa (so'm)">
-    <input id="file" type="file" accept="image/*,application/pdf">
-    <button id="send">Chekni yuborish</button>
-    <div id="msg"></div>
-  </div>
-
-  <div class="card">
-    <h3>📜 Tarix</h3>
-    <div id="hist">Yuklanmoqda…</div>
-  </div>
+<div id="app"><div class="spin">Yuklanmoqda…</div></div>
+<nav id="tabs" hidden role="tablist">
+  <button data-t="home" role="tab"><span class="ic">🏠</span>Bosh</button>
+  <button data-t="nft" role="tab"><span class="ic">🎁</span>NFT</button>
+  <button data-t="wallet" role="tab"><span class="ic">👛</span>Hamyon</button>
+  <button data-t="items" role="tab"><span class="ic">📦</span>Buyumlar</button>
+</nav>
+<div id="toast" role="status"></div>
 
 <script>
-const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
-const H = { "X-Init-Data": tg.initData };
-const fmt = n => Number(n).toLocaleString("ru-RU");
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); if (tg.colorScheme) document.documentElement.dataset.theme = tg.colorScheme; } catch (e) {} }
+const INIT = tg ? tg.initData : "";
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 
-async function load() {
-  const r = await fetch("/api/me", { headers: H });
-  if (!r.ok) { document.body.innerHTML = "<p>Avval botda /start bosib ro'yxatdan o'ting.</p>"; return; }
-  const d = await r.json();
-  stars.textContent = fmt(d.stars);
-  jv.textContent = fmt(d.j);
-  uzs.textContent = fmt(d.uzs);
-  cardinfo.textContent = `Karta: ${d.card} (${d.card_owner})`;
-  hist.innerHTML = d.history.length ? d.history.map(t =>
-    `<div class="row"><span>${t.t} · ${t.kind}</span><b>${Number(t.amount) > 0 ? "+" : ""}${Number(t.amount)} ${t.cur}</b></div>`
-  ).join("") : "Hali amallar yo'q.";
+const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
+            wd: "card", cv: ["UZS", "J"], uc: null, fatal: null };
+const CUR = {UZS: "So'm", J: "J🧧", STARS: "Stars ⭐️", TON: "TON"};
+
+async function api(path, opts = {}) {
+  const h = Object.assign({ "X-Init-Data": INIT }, opts.headers || {});
+  let body = opts.body;
+  if (body && !(body instanceof FormData)) { h["Content-Type"] = "application/json"; body = JSON.stringify(body); }
+  let r;
+  try { r = await fetch(path, { method: opts.method || "GET", headers: h, body }); }
+  catch (e) { throw new Error("Internet aloqasi yo'q. Qayta urinib ko'ring"); }
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error((j && typeof j.detail === "string") ? j.detail : (r.status === 422 ? "Ma'lumot noto'g'ri kiritildi" : "Server javob bermadi, birozdan so'ng urinib ko'ring"));
+  return j;
+}
+let tt;
+function toast(msg, err) {
+  const t = $("#toast"); t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(tt); tt = setTimeout(() => t.className = "", 3600);
+  try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(err ? "error" : "success"); } catch (e) {}
 }
 
-send.onclick = async () => {
-  if (!amount.value || !file.files[0]) { msg.textContent = "Summa va chekni kiriting."; return; }
-  send.disabled = true; msg.textContent = "Yuborilmoqda…";
-  const fd = new FormData();
-  fd.append("amount", amount.value); fd.append("file", file.files[0]);
-  const r = await fetch("/api/receipt", { method: "POST", headers: H, body: fd });
-  msg.textContent = r.ok ? "✅ Chek adminga yuborildi." : "❌ Xatolik, qayta urining.";
-  send.disabled = false;
-  if (r.ok) { amount.value = ""; file.value = ""; load(); }
-};
-load();
+async function refresh(all) {
+  try {
+    S.me = await api("/api/me"); S.fatal = null;
+    if (all || S.tab === "home") S.hist = await api("/api/history");
+    if (all || S.tab === "nft") S.nfts = await api("/api/nfts");
+    if (all || S.tab === "items") S.items = await api("/api/items");
+  } catch (e) { if (!S.me) S.fatal = e.message; else if (all) toast(e.message, true); }
+  if (!S.busy && !typing() && !$(".sheet-bg")) render();
+}
+function typing() { const a = document.activeElement; return a && ["INPUT", "SELECT"].includes(a.tagName); }
+
+function render() {
+  const app = $("#app");
+  if (S.fatal) { $("#tabs").hidden = true; app.innerHTML = `<div class="empty"><p>${esc(S.fatal)}</p><button class="btn alt" id="retry">Qayta urinish</button></div>`; $("#retry").onclick = () => refresh(true); return; }
+  if (!S.me) return;
+  $("#tabs").hidden = false;
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === S.tab));
+  const view = { home: vHome, nft: vNft, wallet: vWallet, items: vItems }[S.tab]();
+  app.innerHTML = hero() + view;
+  bind();
+}
+
+function hero() {
+  const b = S.me.bal;
+  return `<section class="hero"><small>Umumiy qiymat</small>
+    <div class="big num">${fmt(S.me.total_uzs)}<span>so'm</span></div>
+    <div class="coins">
+      <div class="coin"><b class="num">${fmt(b.stars)}</b><i>Stars ⭐️</i></div>
+      <div class="coin"><b class="num">${fmt(b.j)}</b><i>J🧧</i></div>
+      <div class="coin"><b class="num">${fmt(b.uzs)}</b><i>So'm</i></div>
+    </div></section>` + (S.me.frozen ? `<div class="banner">🔒 Hisobingiz muzlatilgan. Botda «Shartnoma → Hisobni muzlatish» bo'limida parol bilan oching.</div>` : "");
+}
+
+function vHome() {
+  const b = S.me.bal, f = S.me.friends;
+  const hist = S.hist.length ? S.hist.map(t => `<div class="row"><div>${esc(t.label)}<div class="mute">${esc(t.t)}</div></div>
+      <b class="num ${t.pos ? "pos" : "neg"}">${t.pos ? "+" : "−"}${esc(t.amount)} ${esc(t.cur)}</b></div>`).join("")
+    : `<div class="empty">Hozircha amal yo'q. «Hamyon» bo'limidan hisobni to'ldiring.</div>`;
+  return `<div class="card"><div class="row"><span>TON</span><b class="num">${esc(b.ton)}</b></div>
+      <div class="row" style="margin-top:8px"><span>PUBG UC</span><b class="num">${fmt(b.uc)}</b></div></div>
+    <h2>Do'stlarni taklif qiling</h2>
+    <div class="card"><div class="mute">Taklif qilinganlar: <b>${f.count}</b></div>
+      <div class="copy"><span>${esc(f.link)}</span><button id="cp" data-v="${esc(f.link)}">Nusxa</button></div></div>
+    <h2>So'nggi amallar</h2><div class="card hist">${hist}</div>`;
+}
+
+function attrs(n) {
+  return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
+    .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(a[2]) + "%" : ""}`).join("<br>");
+}
+function vNft() {
+  if (!S.nfts.length) return `<div class="empty">Hozir sotuvda NFT yo'q. Tez orada yangilari qo'shiladi.</div>`;
+  return `<h2>Sotuvdagi NFT</h2><div class="grid">` + S.nfts.map(n => `
+    <div class="nft"><div class="ph" ${n.photo ? `style="background-image:url('/photo/${n.id}')"` : ""}>${n.photo ? "" : "🎁"}</div>
+    <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
+    <div class="price num">${fmt(n.price_uzs)} so'm</div>
+    <button class="btn alt" data-buy="${n.id}">Sotib olish</button></div></div>`).join("") + `</div>`;
+}
+function vItems() {
+  if (!S.items.length) return `<div class="empty">Hali buyumingiz yo'q. «NFT» bo'limidan xarid qiling.</div>`;
+  return `<h2>Mening buyumlarim</h2>` + S.items.map(i => `<div class="card"><div class="row"><b>${esc(i.title)}</b><span class="mute">${esc(i.date)}</span></div>
+    <div class="attr" style="margin-top:6px">${i.lines.map(esc).join("<br>")}</div>
+    <div class="mute" style="margin-top:6px">To'langan: ${esc(i.paid)}</div></div>`).join("");
+}
+
+function vWallet() {
+  const seg = [["topup", "To'ldirish"], ["wd", "Yechish"], ["cv", "Almashtirish"], ["uc", "UC"]];
+  const head = `<div class="seg" role="tablist">${seg.map(s => `<button role="tab" data-seg="${s[0]}" aria-selected="${S.seg === s[0]}">${s[1]}</button>`).join("")}</div>`;
+  return head + ({ topup: wTopup, wd: wWd, cv: wCv, uc: wUc }[S.seg])();
+}
+function wTopup() {
+  const t = S.me.topup;
+  return `<div class="card"><b>Kartaga o'tkazing</b>
+    <div class="copy"><span class="num">${esc(t.card || "Karta hali kiritilmagan")}</span>${t.card ? `<button id="cp" data-v="${esc(t.card)}">Nusxa</button>` : ""}</div>
+    <div class="mute" style="margin-top:6px">Qabul qiluvchi: ${esc(t.owner || "—")}<br>Minimal: ${fmt(t.min)} so'm · Komissiya: ${t.fee}%</div></div>
+    <form id="f-topup" class="card"><label for="a">O'tkazgan summangiz (so'm)</label>
+    <input id="a" inputmode="numeric" placeholder="${fmt(t.min)}" required>
+    <label for="f">Chek (rasm yoki fayl)</label><input id="f" type="file" accept="image/*,application/pdf" required>
+    <button class="btn">Chekni yuborish</button></form>`;
+}
+function wWd() {
+  const w = S.me.withdraw, m = w[S.wd];
+  const chips = Object.keys(w).map(k => `<button type="button" class="chip" data-wd="${k}" aria-pressed="${S.wd === k}">${esc(w[k].label)}</button>`).join("");
+  return `<div class="chips">${chips}</div>
+    <form id="f-wd" class="card" style="margin-top:12px"><label for="a">Miqdor (${esc(m.cur === "UZS" ? "so'm" : m.cur)})</label>
+    <input id="a" inputmode="numeric" placeholder="${m.min ? fmt(m.min) : "Miqdor"}" required>
+    <label for="d">${esc(m.ask)}</label><input id="d" maxlength="200" required>
+    <div class="mute" style="margin-top:8px">Minimal: ${fmt(m.min)} ${esc(m.cur)}${m.fee ? ` · Komissiya: ${m.fee}%` : ""}</div>
+    <button class="btn">So'rov yuborish</button></form>`;
+}
+function wCv() {
+  const [a, b] = S.cv, bal = S.me.bal, key = c => ({UZS: "uzs", J: "j", STARS: "stars", TON: "ton"}[c]);
+  const opt = sel => Object.keys(CUR).map(c => `<option value="${c}" ${c === sel ? "selected" : ""}>${CUR[c]}</option>`).join("");
+  return `<form id="f-cv" class="card"><label for="ca">Beraman</label><select id="ca">${opt(a)}</select>
+    <div class="mute" style="margin-top:5px">Balans: ${esc(bal[key(a)])}</div>
+    <label for="cb">Olaman</label><select id="cb">${opt(b)}</select>
+    <label for="a">Miqdor</label><input id="a" inputmode="decimal" required>
+    <div class="mute" id="prev" style="margin-top:8px"></div>
+    <button class="btn">Almashtirish</button></form>`;
+}
+function wUc() {
+  const p = S.me.uc_packs;
+  return `<form id="f-uc" class="card"><b>PUBG UC sotib olish</b>
+    <div class="chips" style="margin-top:10px">${p.map(x => `<button type="button" class="chip" data-uc="${x.qty}" aria-pressed="${S.uc === x.qty}">${x.qty} UC · ${fmt(x.price)}</button>`).join("")}</div>
+    <label for="pid">PUBG ID (6–12 raqam)</label><input id="pid" inputmode="numeric" maxlength="12" required>
+    <div class="mute" style="margin-top:8px">To'lov so'm balansingizdan olinadi.</div>
+    <button class="btn">Buyurtma berish</button></form>`;
+}
+
+function bind() {
+  const app = $("#app");
+  const cp = $("#cp");
+  if (cp) cp.onclick = () => { const v = cp.dataset.v; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast("Nusxalandi"), () => toast("Nusxalab bo'lmadi, qo'lda belgilang", true)); };
+  app.querySelectorAll("[data-seg]").forEach(b => b.onclick = () => { S.seg = b.dataset.seg; render(); });
+  app.querySelectorAll("[data-wd]").forEach(b => b.onclick = () => { S.wd = b.dataset.wd; render(); });
+  app.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { S.uc = +b.dataset.uc; app.querySelectorAll("[data-uc]").forEach(x => x.setAttribute("aria-pressed", +x.dataset.uc === S.uc)); });
+  app.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => openBuy(+b.dataset.buy));
+  const run = (id, fn) => {
+    const f = $(id); if (!f) return;
+    f.onsubmit = async e => {
+      e.preventDefault(); if (S.busy) return;
+      S.busy = true; const btn = f.querySelector(".btn"); btn.disabled = true;
+      try { const r = await fn(); toast(r.msg); S.busy = false; await refresh(true); }
+      catch (er) { S.busy = false; btn.disabled = false; toast(er.message, true); }
+    };
+  };
+  run("#f-topup", () => { const fd = new FormData(); fd.append("amount", $("#a").value.replace(/\D/g, "")); fd.append("file", $("#f").files[0]); return api("/api/receipt", { method: "POST", body: fd }); });
+  run("#f-wd", () => api("/api/withdraw", { method: "POST", body: { method: S.wd, amount: $("#a").value, details: $("#d").value } }));
+  run("#f-cv", () => api("/api/convert", { method: "POST", body: { a: $("#ca").value, b: $("#cb").value, amount: $("#a").value } }));
+  run("#f-uc", () => { if (!S.uc) return Promise.reject(new Error("Avval UC paketini tanlang")); return api("/api/uc", { method: "POST", body: { qty: S.uc, pid: $("#pid").value } }); });
+  const ca = $("#ca"), cb = $("#cb");
+  if (ca) {
+    const upd = () => { S.cv = [ca.value, cb.value]; if (ca.value === cb.value) { S.cv[1] = ca.value === "UZS" ? "J" : "UZS"; } };
+    ca.onchange = cb.onchange = () => { upd(); render(); };
+    $("#a").oninput = preview; preview();
+  }
+}
+function preview() {
+  const a = $("#a"), p = $("#prev"); if (!a || !p) return;
+  const v = parseFloat(a.value.replace(",", ".")), r = S.me.rates;
+  const rate = c => ({UZS: 1, J: r.j_uzs, STARS: r.stars_uzs, TON: r.ton_uzs}[c]);
+  const [x, y] = S.cv;
+  if (!(v > 0) || !rate(x) || !rate(y)) { p.textContent = ""; return; }
+  const o = v * rate(x) / rate(y);
+  p.textContent = "Olasiz: ≈ " + (y === "TON" ? o.toFixed(4) : fmt(Math.floor(o))) + " " + CUR[y];
+}
+
+function openBuy(id) {
+  const n = S.nfts.find(x => x.id === id); if (!n) return;
+  const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
+  const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} J🧧`, n.price_j > 0 && b.j >= n.price_j], ["stars", `${fmt(n.price_stars)} Stars ⭐️`, n.price_stars > 0 && b.stars >= n.price_stars]];
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}"><div class="ph" ${n.photo ? `style="background-image:url('/photo/${n.id}')"` : ""}></div>
+    <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
+    <div class="pay">${opts.map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
+    <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) close(); };
+  $("#x", bg).onclick = close;
+  bg.querySelectorAll("[data-c]").forEach(btn => btn.onclick = async () => {
+    bg.querySelectorAll("button").forEach(x => x.disabled = true);
+    try { const r = await api("/api/nft/buy", { method: "POST", body: { nft_id: id, cur: btn.dataset.c } }); close(); toast(r.msg); S.tab = "items"; await refresh(true); }
+    catch (e) { close(); toast(e.message, true); refresh(true); }
+  });
+}
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.t; window.scrollTo(0, 0); render(); refresh(false); });
+
+// botdagi o'zgarishlar bilan bir xil bo'lishi uchun har 15 soniyada yangilanadi
+setInterval(() => { if (!document.hidden && !S.busy) refresh(false); }, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
+refresh(true);
 </script>
 </body>
 </html>

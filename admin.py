@@ -117,7 +117,7 @@ async def send_request_card(chat_id: int, r: Request, u: User):
     cap = (f"{kind} #{r.id}\n👤 {u.tg_id} @{u.username or '-'} {u.phone or ''}\n"
            f"Usul: {r.method}\nMiqdor: {fmt(r.amount)} {r.currency} (komissiya {fmt(r.fee)})")
     if r.details:
-        cap += f"\nRekvizit: {r.details}"
+        cap += f"\nRekvizit: {html.escape(r.details)}"
     markup = KB([[B("✅ Tasdiqlash", f"ad:ok:{r.id}"), B("❌ Rad etish", f"ad:no:{r.id}")]])
     if r.receipt_file_id:
         try:

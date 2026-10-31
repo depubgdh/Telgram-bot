@@ -80,6 +80,8 @@ async def is_subscribed(tg_id: int) -> bool:
     ch = await get_str_setting("channel_id", config.CHANNEL_ID)
     if not ch or ch == "-":
         return True
+    if await check_admin(tg_id, None):  # adminlar o'zini qulflab qo'ymasin
+        return True
     try:
         m = await bot.get_chat_member(ch, tg_id)
         if m.status in ("member", "administrator", "creator"):
@@ -649,9 +651,12 @@ async def wd_details(m: Message, state: FSMContext):
         InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"ad:ok:{r.id}"),
         InlineKeyboardButton(text="❌ Rad etish", callback_data=f"ad:no:{r.id}")]])
     for a in await admin_ids():
-        await bot.send_message(a, f"💸 <b>Yechish #{r.id}</b>\n👤 {u.tg_id} @{u.username} {u.phone}\n"
-                                  f"Tur: {WD[d['method']]}\nMiqdor: {fmt(amt)} {cur} (komissiya {fmt(fee)})\n"
-                                  f"Rekvizit: {m.text}", reply_markup=kb)
+        try:
+            await bot.send_message(a, f"💸 <b>Yechish #{r.id}</b>\n👤 {u.tg_id} @{u.username} {u.phone}\n"
+                                      f"Tur: {WD[d['method']]}\nMiqdor: {fmt(amt)} {cur} (komissiya {fmt(fee)})\n"
+                                      f"Rekvizit: {html.escape(m.text or '')}", reply_markup=kb)
+        except Exception:
+            log.exception("admin ga yechish so'rovi yuborilmadi")
     await m.answer("✅ So'rov adminga yuborildi.")
 
 
