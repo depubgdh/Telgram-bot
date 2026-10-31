@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 import config
 from bot import bot, create_card_topup
-from db import Session, Transaction, get_user
+from db import Session, Transaction, get_setting, get_user
 
 app = FastAPI()
 INDEX = Path(__file__).resolve().parent / "index.html"
@@ -49,11 +49,13 @@ async def me(x_init_data: str = Header(...)):
     u = await get_user(tg["id"])
     if not u or not u.phone:
         raise HTTPException(403, "Avval botda ro'yxatdan o'ting")
+    if u.frozen:
+        raise HTTPException(403, "Hisob muzlatilgan")
     async with Session() as s:
         tx = (await s.execute(select(Transaction).where(Transaction.user_id == u.id)
                               .order_by(Transaction.id.desc()).limit(30))).scalars().all()
     return {
-        "stars": u.stars, "ton": str(u.ton), "uzs": u.uzs, "uc": u.uc,
+        "stars": u.stars, "ton": str(u.ton), "uzs": u.uzs, "uc": u.uc, "j": u.j,
         "card": config.CARD_NUMBER, "card_owner": config.CARD_OWNER,
         "history": [{"t": f"{t.created_at:%d.%m %H:%M}", "kind": t.kind,
                      "amount": str(t.amount), "cur": t.currency} for t in tx],
@@ -64,10 +66,13 @@ async def me(x_init_data: str = Header(...)):
 async def receipt(x_init_data: str = Header(...), amount: int = Form(...), file: UploadFile = File(...)):
     tg = verify_init_data(x_init_data)
     u = await get_user(tg["id"])
-    if not u or not u.phone or u.banned:
+    if not u or not u.phone or u.banned or u.frozen:
         raise HTTPException(403, "ruxsat yo'q")
     if amount <= 0 or amount > 1_000_000_000:
         raise HTTPException(400, "summa noto'g'ri")
+    min_amt = int(await get_setting("topup_min"))
+    if amount < min_amt:
+        raise HTTPException(400, f"minimal summa {min_amt} so'm")
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(400, "fayl 10MB dan katta")

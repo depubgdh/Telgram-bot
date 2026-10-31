@@ -50,4 +50,10 @@ DEFAULT_SETTINGS = {
     "withdraw_nft_fee": "2.1",
     "min_withdraw_uc": "60",
     "min_withdraw_stars": "50",
+    "min_withdraw_phone": "10000",   # telefon raqamga yechish minimumi (so'm)
+    "min_withdraw_card": "25000",    # kartaga yechish minimumi (so'm) — admin panelda o'zgaradi
+    "j_uzs": "1200",           # 1 J🧧 = necha so'm (admin kunlik o'zgartiradi)
+    "topup_min": "5000",       # karta orqali eng kam to'ldirish (so'm)
+    "ref_topup_pct": "0.5",    # referal: do'st hisob to'ldirganda % (so'm dan)
+    "ref_nft_pct": "1.6",      # referal: do'st NFT xarid qilganda %
 }

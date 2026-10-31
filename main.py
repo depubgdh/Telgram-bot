@@ -9,6 +9,7 @@ from bot import bot, dp
 from db import init_db
 from web import app
 import admin  # noqa: F401  (admin panel handlerlarini ro'yxatdan o'tkazadi)
+import features  # noqa: F401  (foydalanuvchi bo'limlari)
 
 
 async def main():

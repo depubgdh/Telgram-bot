@@ -1,6 +1,8 @@
 """Telegram bot: ro'yxatdan o'tish, menyular, balans, to'ldirish, yechish, admin."""
+import html
 import logging
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -9,7 +11,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (CallbackQuery, ChatJoinRequest, ContentType,
+from aiogram.types import (CallbackQuery, ChatJoinRequest, ContentType, ErrorEvent,
                            InlineKeyboardButton, InlineKeyboardMarkup,
                            KeyboardButton, LabeledPrice, Message,
                            PreCheckoutQuery, ReplyKeyboardMarkup,
@@ -18,8 +20,8 @@ from sqlalchemy import select
 
 import config
 from db import (JoinRequest, Nft, Request, Session, Transaction, User,
-                 change_balance, get_or_create_user, get_setting, get_user,
-                 get_str_setting, set_setting)
+                 UserItem, change_balance, get_or_create_user, get_setting,
+                 get_str_setting, get_user, pay_referral, set_setting)
 from admins import admin_ids, check_admin, is_admin
 
 log = logging.getLogger(__name__)
@@ -27,6 +29,29 @@ bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HT
 dp = Dispatcher(storage=MemoryStorage())
 router = Router()
 dp.include_router(router)
+
+
+@dp.errors()
+async def on_error(event: ErrorEvent):
+    """Kutilmagan xato bo'lsa bot jim qolmasin: foydalanuvchiga xabar beradi, xatoni logga yozadi."""
+    exc, upd = event.exception, event.update
+    cq = upd.callback_query
+    if "message is not modified" in str(exc).lower():   # bir xil matnni qayta tahrirlash — zararsiz
+        if cq:
+            try:
+                await cq.answer()
+            except Exception:
+                pass
+        return True
+    log.exception("Handler xatosi", exc_info=exc)
+    try:
+        if cq:
+            await cq.answer("⚠️ Xatolik yuz berdi, qayta urinib ko'ring", show_alert=True)
+        elif upd.message:
+            await upd.message.answer("⚠️ Xatolik yuz berdi, qayta urinib ko'ring.")
+    except Exception:
+        pass
+    return True
 
 TERMS = (
     "📜 <b>Foydalanish shartlari</b>\n\n"
@@ -76,17 +101,23 @@ async def on_join_request(req: ChatJoinRequest):
 
 
 # ---------------------------------------------------------------- menyu
-def main_kb(adm: bool = False) -> InlineKeyboardMarkup:
+def main_kb(adm: bool = False, can_sell: bool = False) -> InlineKeyboardMarkup:
+    def b(t: str, d: str) -> InlineKeyboardButton:
+        return InlineKeyboardButton(text=t, callback_data=d)
+
     rows = [
-        [InlineKeyboardButton(text="🎁 NFT / Sovg'alar", callback_data="nft:list")],
-        [InlineKeyboardButton(text="🛒 Sotib olish", callback_data="m:buy"),
-         InlineKeyboardButton(text="🔄 Almashtirish", callback_data="m:convert")],
-        [InlineKeyboardButton(text="💳 Hisobni to'ldirish", callback_data="m:topup"),
-         InlineKeyboardButton(text="💸 Yechib olish", callback_data="m:withdraw")],
-        [InlineKeyboardButton(text="📜 Tarix", callback_data="m:history")],
+        [b("🎁 NFT / Sovg'alar", "nft:list")],
+        [b("🛒 Sotib olish", "m:buy"), b("📦 Mening buyumlarim", "m:items")],
+        [b("🔄 Almashtirish", "m:convert"), b("💳 Hisobni to'ldirish", "m:topup")],
+        [b("💸 Yechib olish", "m:withdraw"), b("🎮 PUBG UC xaridi", "m:uc")],
+        [b("✔️ Shartnoma tuzish 📝", "m:contract")],
+        [b("👥 Do'stlarim", "m:friends"), b("📜 Tarix", "m:history")],
+        [b("💼 Mening hisoblarim", "m:accounts")],
     ]
+    if can_sell:
+        rows.append([b("🏷️ NFT Sotish", "sell:menu")])
     if adm:
-        rows.append([InlineKeyboardButton(text="👑 Admin panel", callback_data="adm:main")])
+        rows.append([b("👑 Admin panel", "adm:main")])
     if config.WEBAPP_URL:
         rows.append([InlineKeyboardButton(text="📱 Mini App", web_app=WebAppInfo(url=config.WEBAPP_URL))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -99,22 +130,77 @@ def fmt_ton(n) -> str:
     return s or "0"
 
 
+def j_cost(price_uzs: int, rate: Decimal) -> int:
+    """NFT narxi J🧧 da (so'm narxi / kurs, yuqoriga yaxlitlanadi)."""
+    if rate <= 0 or price_uzs <= 0:
+        return 0
+    return int((Decimal(price_uzs) / rate).to_integral_value(rounding=ROUND_CEILING))
+
+
+def nft_card_text(n: Nft, jc: int | None = None, price: bool = True) -> str:
+    """Fragment uslubidagi NFT kartochkasi: Model / Orqa fon / Belgi va ularning foizlari."""
+    lines = [f"🎁 <b>{html.escape(n.title)}</b>", ""]
+    for label, name, pct in (("Model", n.model, n.model_pct),
+                             ("Orqa fon", n.backdrop, n.backdrop_pct),
+                             ("Belgi", n.symbol, n.symbol_pct)):
+        if name:
+            line = f"▫️ {label}: <b>{html.escape(name)}</b>"
+            if pct:
+                line += f"  <i>{html.escape(pct)}</i>"
+            lines.append(line)
+    if price:
+        lines.append("")
+        parts = []
+        if n.price_uzs > 0:
+            parts.append(f"{fmt(n.price_uzs)} so'm")
+        if jc:
+            parts.append(f"{fmt(jc)} J🧧")
+        if n.price_stars > 0:
+            parts.append(f"{n.price_stars} ⭐")
+        lines.append("💰 " + "  |  ".join(parts))
+        if n.stock is not None:
+            lines.append(f"📦 Qoldi: {n.stock} dona")
+    return "\n".join(lines)
+
+
 async def header(u: User) -> str:
-    return f"⭐️ Stars: {fmt(u.stars)}\n🪙 TON: {fmt_ton(u.ton)}\n🇺🇿 So'm: {fmt(u.uzs)}"
+    return f"⭐️ Stars: {fmt(u.stars)}\nJ🧧: {fmt(u.j)}\n🇺🇿 So'm: {fmt(u.uzs)}"
+
+
+async def edit_or_send(c: CallbackQuery, text: str, markup: InlineKeyboardMarkup):
+    """Xabarni tahrirlaydi; rasmli xabar bo'lsa (tahrirlab bo'lmaydi) o'chirib, yangisini yuboradi."""
+    try:
+        await c.message.edit_text(text, reply_markup=markup)
+    except Exception:
+        try:
+            await c.message.delete()
+        except Exception:
+            pass
+        await c.message.answer(text, reply_markup=markup)
 
 
 async def show_main(target: Message | CallbackQuery, tg_id: int):
     u = await get_user(tg_id)
     adm = await check_admin(u.tg_id, u.username)
-    text = f"{await header(u)}\n\nAsosiy menyu:"
+    if u.frozen:
+        text = ("🧊 <b>Hisobingiz muzlatilgan</b>\n\n⭐️ Stars: 0\nJ🧧: 0\n🇺🇿 So'm: 0\n\n"
+                "Ochish uchun parolni kiriting.")
+        rows = [[InlineKeyboardButton(text="🔓 Hisobni ochish", callback_data="fz:open")],
+                [InlineKeyboardButton(text="🔄 Parolni tiklash", callback_data="fz:reset")]]
+        if adm:
+            rows.append([InlineKeyboardButton(text="👑 Admin panel", callback_data="adm:main")])
+        kb = InlineKeyboardMarkup(inline_keyboard=rows)
+    else:
+        text = f"{await header(u)}\n\nAsosiy menyu:"
+        kb = main_kb(adm, u.can_sell)
     msg = target.message if isinstance(target, CallbackQuery) else target
-    try:
-        if isinstance(target, CallbackQuery):
-            await msg.edit_text(text, reply_markup=main_kb(adm))
+    if isinstance(target, CallbackQuery):
+        try:
+            await msg.edit_text(text, reply_markup=kb)
             return
-    except Exception:
-        pass
-    await msg.answer(text, reply_markup=main_kb(adm))
+        except Exception:
+            pass
+    await msg.answer(text, reply_markup=kb)
 
 
 def back_kb(to="m:main") -> InlineKeyboardMarkup:
@@ -125,10 +211,17 @@ def back_kb(to="m:main") -> InlineKeyboardMarkup:
 @router.message(CommandStart())
 async def start(m: Message, state: FSMContext):
     await state.clear()
-    u = await get_or_create_user(m.from_user.id, m.from_user.username)
+    ref = None
+    parts = (m.text or "").split(maxsplit=1)
+    if len(parts) > 1 and parts[1].startswith("ref_") and parts[1][4:].isdigit():
+        ref = int(parts[1][4:])
+    u = await get_or_create_user(m.from_user.id, m.from_user.username, ref)
     await is_admin(m.from_user)  # admin bo'lsa, ID si eslab qolinadi
     if u.banned:
         return await m.answer("⛔ Hisobingiz bloklangan.")
+    if u.blocked_until and u.blocked_until > datetime.utcnow():
+        mins = int((u.blocked_until - datetime.utcnow()).total_seconds() // 60) + 1
+        return await m.answer(f"⛔ Xavfsizlik maqsadida {mins} daqiqaga bloklangansiz.")
     if not await is_subscribed(m.from_user.id):
         link = await get_str_setting("channel_link", config.CHANNEL_LINK)
         kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -190,6 +283,14 @@ async def guard(c: CallbackQuery) -> User | None:
     if not u or not u.phone or u.banned or not await is_subscribed(c.from_user.id):
         await c.answer("Avval /start bosing", show_alert=True)
         return None
+    now = datetime.utcnow()
+    if u.blocked_until and u.blocked_until > now:
+        mins = int((u.blocked_until - now).total_seconds() // 60) + 1
+        await c.answer(f"⛔ Xavfsizlik maqsadida {mins} daqiqaga bloklangansiz.", show_alert=True)
+        return None
+    if u.frozen and not (c.data or "").startswith(("fz:", "m:main")):
+        await c.answer("🧊 Hisobingiz muzlatilgan. Asosiy menyudan parol bilan oching.", show_alert=True)
+        return None
     return u
 
 
@@ -206,13 +307,14 @@ async def nft_list(c: CallbackQuery):
     if not await guard(c):
         return
     async with Session() as s:
-        items = (await s.execute(select(Nft).where(Nft.active))).scalars().all()
+        items = (await s.execute(select(Nft).where(Nft.active, Nft.stock > 0).order_by(Nft.id))).scalars().all()
     if not items:
-        return await c.message.edit_text("Hozircha NFT yo'q.", reply_markup=back_kb())
-    rows = [[InlineKeyboardButton(text=f"{n.title} — {fmt(n.price_uzs)} so'm / {n.price_stars}⭐",
+        return await edit_or_send(c, "Hozircha NFT yo'q.", back_kb())
+    rows = [[InlineKeyboardButton(text=f"{n.title} — {fmt(n.price_uzs)} so'm",
                                   callback_data=f"nft:v:{n.id}")] for n in items]
     rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="m:main")])
-    await c.message.edit_text("🎁 <b>NFT / Sovg'alar</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await edit_or_send(c, "🎁 <b>NFT / Sovg'alar</b>\nKartochkani ko'rish uchun tanlang:",
+                       InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @router.callback_query(F.data.startswith("nft:v:"))
@@ -222,16 +324,27 @@ async def nft_view(c: CallbackQuery):
     nid = int(c.data.split(":")[2])
     async with Session() as s:
         n = await s.get(Nft, nid)
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"{fmt(n.price_uzs)} so'm bilan", callback_data=f"nft:b:uzs:{nid}")],
-        [InlineKeyboardButton(text=f"{n.price_stars} ⭐ bilan", callback_data=f"nft:b:stars:{nid}")],
-        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="nft:list")]])
-    cap = f"<b>{n.title}</b>\n💰 {fmt(n.price_uzs)} so'm  |  {n.price_stars} ⭐"
+    if not n or not n.active or n.stock <= 0:
+        return await c.answer("Bu NFT sotilgan yoki mavjud emas", show_alert=True)
+    jc = j_cost(n.price_uzs, await get_setting("j_uzs"))
+    rows = []
+    if n.price_uzs > 0:
+        rows.append([InlineKeyboardButton(text=f"{fmt(n.price_uzs)} so'm bilan", callback_data=f"nft:b:uzs:{nid}")])
+    if jc > 0:
+        rows.append([InlineKeyboardButton(text=f"{fmt(jc)} J🧧 bilan", callback_data=f"nft:b:j:{nid}")])
+    if n.price_stars > 0:
+        rows.append([InlineKeyboardButton(text=f"{n.price_stars} ⭐ bilan", callback_data=f"nft:b:stars:{nid}")])
+    rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="nft:list")])
+    kb = InlineKeyboardMarkup(inline_keyboard=rows)
+    cap = nft_card_text(n, jc)
     if n.photo_file_id:
-        await c.message.delete()
+        try:
+            await c.message.delete()
+        except Exception:
+            pass
         await c.message.answer_photo(n.photo_file_id, caption=cap, reply_markup=kb)
     else:
-        await c.message.edit_text(cap, reply_markup=kb)
+        await edit_or_send(c, cap, kb)
 
 
 @router.callback_query(F.data.startswith("nft:b:"))
@@ -240,18 +353,55 @@ async def nft_buy(c: CallbackQuery):
     if not u:
         return
     _, _, cur, nid = c.data.split(":")
+    if cur not in ("uzs", "stars", "j"):
+        return await c.answer()
+    stars_rate = await get_setting("stars_uzs")
+    j_rate = await get_setting("j_uzs")
+    ref_pct = await get_setting("ref_nft_pct")
+    ref_info = None
     async with Session() as s:
-        n = await s.get(Nft, int(nid))
-        price = n.price_uzs if cur == "uzs" else n.price_stars
-        ok = await change_balance(s, u.id, cur.upper(), Decimal(-price), "buy_nft", note=n.title)
-        if not ok:
+        n = await s.get(Nft, int(nid), with_for_update=True)  # bir vaqtda ikki kishi olmasligi uchun qulflanadi
+        if not n or not n.active or n.stock <= 0:
+            return await c.answer("Afsuski, bu NFT allaqachon sotilgan ❌", show_alert=True)
+        if cur == "uzs":
+            price = n.price_uzs
+            base = Decimal(price)
+        elif cur == "stars":
+            price = n.price_stars
+            base = Decimal(price) * stars_rate
+        else:
+            price = j_cost(n.price_uzs, j_rate)
+            base = Decimal(price) * j_rate
+        if price <= 0:
+            return await c.answer("Bu usulda sotib olib bo'lmaydi", show_alert=True)
+        if not await change_balance(s, u.id, cur.upper(), Decimal(-price), "buy_nft", note=n.title):
             return await c.answer("Balansda mablag' yetarli emas ❌", show_alert=True)
+        n.stock -= 1
+        if n.stock <= 0:
+            n.active = False
+        s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
+                       photo_file_id=n.photo_file_id, paid=f"{fmt(price)} {cur.upper()}"))
+        ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await c.answer("✅ Sotib olindi!", show_alert=True)
+    try:
+        await c.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     for a in await admin_ids():
-        await bot.send_message(a, f"🎁 NFT sotildi: <b>{n.title}</b>\nXaridor: {u.tg_id} @{u.username} {u.phone}\n"
-                                  f"To'lov: {fmt(price)} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
-    await c.message.answer("Admin NFT ni tez orada hisobingizga yuboradi.", reply_markup=back_kb())
+        try:
+            await bot.send_message(a, f"🎁 NFT sotildi: <b>{html.escape(n.title)}</b>\n"
+                                      f"Xaridor: {u.tg_id} @{u.username or '-'} {u.phone}\n"
+                                      f"To'lov: {fmt(price)} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
+        except Exception:
+            pass
+    if ref_info:
+        try:
+            await bot.send_message(ref_info[0], f"💰 Do'stlaringizdan biri NFT xarid qildi: sizga +{fmt(ref_info[1])} so'm referal foyda.")
+        except Exception:
+            pass
+    await c.message.answer("✅ Xarid qilindi! Buyum «📦 Mening buyumlarim» bo'limida. "
+                           "Admin NFT ni tez orada yuboradi.", reply_markup=back_kb())
 
 
 # ---------------------------------------------------------------- Sotib olish
@@ -262,7 +412,7 @@ async def m_buy(c: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🌟 Stars sotib olish", callback_data="buy:stars")],
         [InlineKeyboardButton(text="🎁 NFT sotib olish", callback_data="nft:list")],
-        [InlineKeyboardButton(text="🎮 PUBG UC", callback_data="buy:uc")],
+        [InlineKeyboardButton(text="🎮 PUBG UC", callback_data="m:uc")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="m:main")]])
     await c.message.edit_text("🛒 Nimani sotib olmoqchisiz?", reply_markup=kb)
 
@@ -301,62 +451,11 @@ async def buy_do(m: Message, state: FSMContext):
     await show_main(m, m.from_user.id)
 
 
-# ---------------------------------------------------------------- Almashtirish
-CONV = {  # (from, to)
-    "uzs_ton": ("UZS", "TON"), "ton_uzs": ("TON", "UZS"),
-    "uzs_stars": ("UZS", "STARS"), "stars_uzs": ("STARS", "UZS"),
-}
-
-
+# ---------------------------------------------------------------- Kurslar (almashtirish bo'limi features.py da)
 async def rate_uzs(cur: str) -> Decimal:
-    return {"UZS": Decimal(1), "TON": await get_setting("ton_uzs"), "STARS": await get_setting("stars_uzs")}[cur]
-
-
-@router.callback_query(F.data == "m:convert")
-async def m_convert(c: CallbackQuery):
-    if not await guard(c):
-        return
-    rows = [[InlineKeyboardButton(text=f"{a} → {b}", callback_data=f"cv:{k}")] for k, (a, b) in CONV.items()]
-    rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="m:main")])
-    await c.message.edit_text("🔄 Qaysi yo'nalishda almashtiramiz?\n(Kurs admin tomonidan belgilanadi)",
-                              reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
-
-
-@router.callback_query(F.data.startswith("cv:"))
-async def cv_ask(c: CallbackQuery, state: FSMContext):
-    if not await guard(c):
-        return
-    key = c.data.split(":")[1]
-    a, b = CONV[key]
-    ra, rb = await rate_uzs(a), await rate_uzs(b)
-    await state.set_state(S.convert_amount)
-    await state.update_data(key=key)
-    await c.message.edit_text(f"1 {a} = {ra / rb:.6f} {b}\nNecha {a} almashtirmoqchisiz?", reply_markup=back_kb("m:convert"))
-
-
-@router.message(S.convert_amount)
-async def cv_do(m: Message, state: FSMContext):
-    try:
-        amt = Decimal(m.text.replace(",", ".").replace(" ", ""))
-        assert amt > 0
-    except (InvalidOperation, AssertionError):
-        return await m.answer("To'g'ri son kiriting.")
-    key = (await state.get_data())["key"]
-    a, b = CONV[key]
-    out = amt * await rate_uzs(a) / await rate_uzs(b)
-    if b in ("UZS", "STARS"):
-        out = Decimal(int(out))
-    if a in ("UZS", "STARS"):
-        amt = Decimal(int(amt))
-    u = await get_user(m.from_user.id)
-    async with Session() as s:
-        if not await change_balance(s, u.id, a, -amt, "convert", note=f"{a}->{b}"):
-            return await m.answer("Balans yetarli emas ❌")
-        await change_balance(s, u.id, b, out, "convert", note=f"{a}->{b}")
-        await s.commit()
-    await state.clear()
-    await m.answer(f"✅ {amt} {a} → {out} {b}")
-    await show_main(m, m.from_user.id)
+    """1 birlik valyuta necha so'm (admin qo'lda belgilaydi)."""
+    return {"UZS": Decimal(1), "J": await get_setting("j_uzs"),
+            "TON": await get_setting("ton_uzs"), "STARS": await get_setting("stars_uzs")}[cur]
 
 
 # ---------------------------------------------------------------- To'ldirish
@@ -385,7 +484,7 @@ async def tp_method(c: CallbackQuery, state: FSMContext):
         fee = await get_setting("topup_card_fee")
         return await c.message.edit_text(
             f"Karta: <code>{config.CARD_NUMBER}</code>\nEgasi: {config.CARD_OWNER}\n\n"
-            f"Necha so'm o'tkazmoqchisiz? (komissiya {fee}%)", reply_markup=back_kb("m:topup"))
+            f"Necha so'm o'tkazmoqchisiz? (minimal {fmt(await get_setting('topup_min'))} so'm, komissiya {fee}%)", reply_markup=back_kb("m:topup"))
     if method == "stars":
         await state.set_state(S.topup_amount)
         return await c.message.edit_text("Necha ⭐ Stars bilan to'ldirasiz? (kamida 1)", reply_markup=back_kb("m:topup"))
@@ -409,6 +508,9 @@ async def tp_amount(m: Message, state: FSMContext):
     except (InvalidOperation, AssertionError):
         return await m.answer("To'g'ri son kiriting.")
     if method == "card":
+        min_amt = await get_setting("topup_min")
+        if amt < min_amt:
+            return await m.answer(f"❌ Minimal miqdor: {fmt(min_amt)} so'm. Kattaroq summa kiriting.")
         await state.update_data(amount=str(int(amt)))
         await state.set_state(S.topup_receipt)
         return await m.answer("O'tkazma qiling va chek (skrinshot/fayl) ni shu yerga yuboring "
@@ -498,8 +600,8 @@ async def wd_method(c: CallbackQuery, state: FSMContext):
         "uc": f"Miqdor (UC). Minimal: {await get_setting('min_withdraw_uc')}",
         "stars": f"Miqdor (Stars). Minimal: {await get_setting('min_withdraw_stars')}",
         "nft": "Qaysi NFT narxida (so'm) yechmoqchisiz? Foiz: " + str(await get_setting("withdraw_nft_fee")) + "%",
-        "card": f"Summa (so'm). Komissiya {await get_setting('withdraw_card_fee')}%",
-        "phone": f"Summa (so'm). Komissiya {await get_setting('withdraw_phone_fee')}%",
+        "card": f"Summa (so'm). Minimal: {fmt(await get_setting('min_withdraw_card'))}. Komissiya {await get_setting('withdraw_card_fee')}%",
+        "phone": f"Summa (so'm). Minimal: {fmt(await get_setting('min_withdraw_phone'))}. Komissiya {await get_setting('withdraw_phone_fee')}%",
     }
     await c.message.edit_text(hints[method], reply_markup=back_kb("m:withdraw"))
 
@@ -512,7 +614,8 @@ async def wd_amount(m: Message, state: FSMContext):
     except (InvalidOperation, AssertionError):
         return await m.answer("To'g'ri son kiriting.")
     method = (await state.get_data())["method"]
-    mins = {"uc": "min_withdraw_uc", "stars": "min_withdraw_stars"}
+    mins = {"uc": "min_withdraw_uc", "stars": "min_withdraw_stars",
+            "phone": "min_withdraw_phone", "card": "min_withdraw_card"}
     if method in mins and amt < await get_setting(mins[method]):
         return await m.answer(f"Minimal miqdor: {await get_setting(mins[method])}")
     cur = {"uc": "UC", "stars": "STARS"}.get(method, "UZS")
@@ -554,7 +657,8 @@ async def wd_details(m: Message, state: FSMContext):
 
 # ---------------------------------------------------------------- Tarix
 KINDS = {"topup": "To'ldirish", "withdraw": "Yechish", "buy_nft": "NFT xarid", "buy_stars": "Stars xarid",
-         "buy_uc": "UC xarid", "convert": "Almashtirish", "refund": "Qaytarildi", "admin": "Admin o'zgartirdi"}
+         "buy_uc": "UC xarid", "convert": "Almashtirish", "refund": "Qaytarildi", "admin": "Admin o'zgartirdi",
+         "uc_order": "UC buyurtma", "ref": "Referal foyda", "bonus": "Bonus"}
 
 
 def fmt_tx(t) -> str:
@@ -584,8 +688,12 @@ async def admin_decide(c: CallbackQuery):
     if not await is_admin(c.from_user):
         return await c.answer("Ruxsat yo'q", show_alert=True)
     _, act, rid = c.data.split(":")
+    ref_pct = await get_setting("ref_topup_pct")
+    ref_info = None
     async with Session() as s:
-        r = await s.get(Request, int(rid))
+        r = await s.get(Request, int(rid), with_for_update=True)
+        if not r:
+            return await c.answer("So'rov topilmadi", show_alert=True)
         if r.status != "pending":
             return await c.answer("Allaqachon ko'rib chiqilgan", show_alert=True)
         u = await s.get(User, r.user_id)
@@ -593,15 +701,34 @@ async def admin_decide(c: CallbackQuery):
             r.status = "approved"
             if r.kind == "topup":  # komissiya ayriladi, qolgani balansga
                 await change_balance(s, u.id, r.currency, r.amount - r.fee, "topup", fee=r.fee, note=f"karta #{r.id}")
+                if r.method == "card":
+                    ref_info = await pay_referral(s, u, Decimal(r.amount), ref_pct, "topup")
             msg = "✅ So'rovingiz tasdiqlandi."
+            if r.kind == "uc_order":
+                msg = "✅ UC buyurtmangiz bajarildi! PUBG hisobingizni tekshiring."
         else:
             r.status = "rejected"
             if r.kind == "withdraw":  # ushlab turilgan mablag' qaytariladi
                 await change_balance(s, u.id, r.currency, r.amount + r.fee, "refund", note=f"rad #{r.id}")
+            if r.kind == "uc_order":
+                await change_balance(s, u.id, "UZS", Decimal(r.amount), "refund", note=f"UC rad #{r.id}")
             msg = "❌ So'rovingiz rad etildi (pul tushmagan yoki ma'lumot noto'g'ri)."
+            if r.kind == "uc_order":
+                msg = "❌ UC buyurtma bekor qilindi, mablag' balansingizga qaytarildi."
         await s.commit()
-    await bot.send_message(u.tg_id, f"#{r.id}: {msg}")
-    await c.message.edit_reply_markup(reply_markup=None)
+    try:
+        await bot.send_message(u.tg_id, f"#{r.id}: {msg}")
+    except Exception:
+        pass
+    if ref_info:
+        try:
+            await bot.send_message(ref_info[0], f"💰 Do'stlaringizdan biri hisobini to'ldirdi: sizga +{fmt(ref_info[1])} so'm referal foyda.")
+        except Exception:
+            pass
+    try:
+        await c.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await c.answer("Bajarildi")
 
 
