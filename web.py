@@ -25,7 +25,7 @@ import config
 from admins import admin_ids
 from bot import (KINDS, WD, bot, create_card_topup, fmt, fmt_ton,
                  is_subscribed, j_cost, nft_card_text, rate_uzs)
-from db import (Nft, Request, Session, Transaction, User, UserItem,
+from db import (Banner, Nft, Request, Session, Transaction, User, UserItem,
                 change_balance, get_setting, get_user, pay_referral)
 
 app = FastAPI()
@@ -422,3 +422,36 @@ async def receipt(x_init_data: str = Header(...), amount: int = Form(...), file:
                                   caption="📎 Chek qabul qilindi, admin tekshiradi.")
     await create_card_topup(u.tg_id, Decimal(amount), msg.document.file_id)
     return {"ok": True, "msg": "Chek adminga yuborildi. Tasdiqlangach balansingiz to'ladi."}
+
+
+# ------------------------------------------------------------------ reklama bannerlari
+@app.get("/api/banners")
+async def banners(x_init_data: str = Header(...)):
+    await auth(x_init_data)
+    async with Session() as s:
+        rows = (await s.execute(select(Banner).order_by(Banner.id))).scalars().all()
+    return [{"id": b.id, "url": b.url} for b in rows]
+
+
+_banner_cache: dict[int, bytes] = {}
+
+
+@app.get("/banner/{bid}")
+async def banner_img(bid: int):
+    data = _banner_cache.get(bid)
+    if data is None:
+        async with Session() as s:
+            b = await s.get(Banner, bid)
+        if not b:
+            raise HTTPException(404, "Reklama yo'q")
+        try:
+            f = await bot.get_file(b.file_id)
+            buf = io.BytesIO()
+            await bot.download_file(f.file_path, destination=buf)
+            data = buf.getvalue()
+        except Exception:
+            raise HTTPException(404, "Rasm topilmadi")
+        if len(_banner_cache) > 50:
+            _banner_cache.clear()
+        _banner_cache[bid] = data
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})

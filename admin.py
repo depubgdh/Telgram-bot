@@ -20,7 +20,7 @@ from sqlalchemy import func, or_, select
 import config
 from admins import admin_ids, is_admin
 from bot import bot, dp, fmt, fmt_ton, fmt_tx, header, j_cost, nft_card_text
-from db import (Application, Bonus, Nft, Request, Session, Transaction, User,
+from db import (Application, Banner, Bonus, Nft, Request, Session, Transaction, User,
                 UserItem, change_balance, get_setting, get_str_setting,
                 set_setting)
 from features import app_text
@@ -84,6 +84,7 @@ class A(StatesGroup):
     bn_text = State()
     ad_text = State()
     ad_btn = State()
+    mb_photo = State()
 
 
 PANEL = KB([
@@ -94,6 +95,7 @@ PANEL = KB([
     [B("🎁 NFT boshqaruvi", "adm:nfts")],
     [B("🎉 Bonus yuborish", "adm:bonus"), B("📣 Reklama tarqatish", "adm:ad")],
     [B("📢 Majburiy kanal", "adm:channel"), B("📈 Statistika", "adm:stats")],
+    [B("🖼 Mini App reklamasi", "adm:mb")],
     [B("⬅️ Asosiy menyu", "m:main")],
 ])
 
@@ -993,3 +995,57 @@ async def adm_ad_ok(c: CallbackQuery, state: FSMContext):
     await c.answer("Yuborilmoqda…")
     await show(c, "⏳ Reklama yuborilmoqda… Tugagach xabar beraman.", back())
     spawn(run_ad(c.from_user.id, d))
+
+
+# ------------------------------------------------------------ Mini App reklama bannerlari
+@router.callback_query(F.data == "adm:mb")
+async def adm_mb(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    async with Session() as s:
+        rows = (await s.execute(select(Banner).order_by(Banner.id))).scalars().all()
+    lines = "\n".join(f"#{b.id} — {html.escape(b.url) if b.url else 'havolasiz'}" for b in rows) or "Hozircha reklama yo'q."
+    kb = [[B("➕ Reklama qo'shish", "adm:mba")]]
+    kb += [[B(f"🗑 #{b.id} ni o'chirish", f"adm:mbd:{b.id}")] for b in rows]
+    kb.append([B("⬅️ Panel", "adm:main")])
+    await show(c, "🖼 <b>Mini App reklamasi</b>\nBir nechta bo'lsa, almashib turadi.\n\n" + lines, KB(kb))
+
+
+@router.callback_query(F.data == "adm:mba")
+async def adm_mba(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    await state.set_state(A.mb_photo)
+    await show(c, "Reklama <b>rasmini</b> yuboring (gorizontal, taxminan 2:1 bo'lsa chiroyli chiqadi).\n"
+                  "Bosilganda ochiladigan havolani rasm <b>izohiga</b> yozing (masalan <code>https://t.me/kanal</code>). "
+                  "Izoh yozmasangiz, rasm bosilmaydi.", back("adm:mb"))
+
+
+@router.message(A.mb_photo, F.photo)
+async def adm_mb_photo(m: Message, state: FSMContext):
+    url = (m.caption or "").strip()
+    if url.startswith("@"):
+        url = "https://t.me/" + url[1:]
+    if url and not url.startswith(("http://", "https://")):
+        return await m.answer("Havola http:// yoki https:// bilan boshlansin (yoki @kanal). Rasmni qayta yuboring.",
+                              reply_markup=back("adm:mb"))
+    async with Session() as s:
+        s.add(Banner(file_id=m.photo[-1].file_id, url=url[:300]))
+        await s.commit()
+    await state.clear()
+    await m.answer("✅ Reklama qo'shildi. Mini App'da 15 soniya ichida ko'rinadi.", reply_markup=back("adm:mb"))
+
+
+@router.message(A.mb_photo)
+async def adm_mb_bad(m: Message):
+    await m.answer("Iltimos, rasm yuboring (fayl emas, oddiy rasm).", reply_markup=back("adm:mb"))
+
+
+@router.callback_query(F.data.startswith("adm:mbd:"))
+async def adm_mbd(c: CallbackQuery):
+    async with Session() as s:
+        b = await s.get(Banner, int(c.data.split(":")[2]))
+        if b:
+            await s.delete(b)
+            await s.commit()
+    await c.answer("O'chirildi")
+    await show(c, "🗑 Reklama o'chirildi.", back("adm:mb"))

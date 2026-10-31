@@ -135,6 +135,15 @@ class Bonus(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class Banner(Base):
+    """Mini App'dagi reklama bannerlari (admin Telegram orqali rasm yuboradi)."""
+    __tablename__ = "banners"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    file_id: Mapped[str] = mapped_column(String(300))
+    url: Mapped[str] = mapped_column(String(300), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class BonusClaim(Base):
     __tablename__ = "bonus_claims"
     bonus_id: Mapped[int] = mapped_column(Integer, primary_key=True)
