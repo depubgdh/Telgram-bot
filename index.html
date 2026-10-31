@@ -10,15 +10,15 @@
   --bg:#EEF1F0; --card:#FFFFFF; --ink:#13201F; --mute:#66787A; --line:#DCE3E2;
   --teal:#0B3D3A; --teal2:#14605A; --gold:#F0A500; --gold-ink:#3A2900;
   --pos:#12805C; --neg:#C73E2B; --field:#F6F8F8;
-  --r:14px;
+  --r:14px; --glass:rgba(255,255,255,.66); --glass-line:rgba(0,0,0,.07); --tab-on:#14605A; --tab-bg:rgba(20,96,90,.13);
 }
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66}
+  :root:not([data-theme="light"]){--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66;--glass:rgba(24,40,39,.62);--glass-line:rgba(255,255,255,.09);--tab-on:#4CC3B6;--tab-bg:rgba(76,195,182,.17);}
 }
-:root[data-theme="dark"]{--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66}
+:root[data-theme="dark"]{--glass:rgba(24,40,39,.62);--glass-line:rgba(255,255,255,.09);--tab-on:#4CC3B6;--tab-bg:rgba(76,195,182,.17);--bg:#0C1514;--card:#142120;--ink:#E9F1EF;--mute:#8CA3A0;--line:#233634;--field:#0F1B1A;--teal:#0E4A45;--teal2:#3FB5A8;--pos:#3ED598;--neg:#FF7B66}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-body{padding:0 16px calc(84px + env(safe-area-inset-bottom));min-height:100vh}
+body{padding:0 16px calc(110px + env(safe-area-inset-bottom));min-height:100vh}
 h2{font-size:18px;margin:22px 0 10px;font-weight:700}
 .num{font-variant-numeric:tabular-nums}
 button{font:inherit;cursor:pointer}
@@ -44,12 +44,29 @@ button{font:inherit;cursor:pointer}
 .hist .row:last-child{border:0}
 .empty{text-align:center;color:var(--mute);padding:26px 10px}
 
-nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(4,1fr);padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:5;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:6px;border-radius:32px;
+  background:var(--glass);border:1px solid var(--glass-line);box-shadow:0 10px 32px rgba(0,0,0,.22);
+  -webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
 nav[hidden]{display:none}
-nav button{background:none;border:0;color:var(--mute);padding:6px 2px;border-radius:10px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
-nav button .ic{font-size:21px;line-height:1}
-nav button[aria-selected="true"]{color:var(--teal2);font-weight:700}
+nav button{background:none;border:0;color:var(--mute);padding:8px 2px 7px;border-radius:26px;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .2s,color .2s}
+nav svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav button[aria-selected="true"]{color:var(--tab-on);background:var(--tab-bg);font-weight:700}
+
+/* tepa qator: Telegram tugmalari orasidagi balans chiplari */
+#top{position:sticky;top:0;z-index:6;margin:0 -16px;padding-top:var(--st,0px);padding-left:calc(16px + var(--sl,0px));padding-right:calc(16px + var(--sr,0px))}
+#top[hidden]{display:none}
+#top .in{height:var(--sh,52px);display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
+#top .in::-webkit-scrollbar{display:none}
+.tchip{flex:none;display:flex;align-items:center;gap:6px;padding:4px 4px 4px 9px;border-radius:999px;color:var(--ink);font-weight:700;font-size:14px;
+  background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.tchip .plus{width:24px;height:24px;border-radius:50%;border:0;padding:0;display:grid;place-items:center;background:var(--gold);color:var(--gold-ink)}
+.tchip .plus svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round}
+.cur{width:18px;height:18px;flex:none;vertical-align:-4px}
+.brow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.brow:last-child{border:0}
+.brow .cur{width:24px;height:24px}
+.brow b{margin-left:auto}
 
 .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;margin:14px 0 12px;gap:3px}
 .seg button{flex:1;border:0;background:none;color:var(--mute);padding:9px 2px;border-radius:9px;font-size:14px}
@@ -81,7 +98,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .pay button{display:flex;justify-content:space-between;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
 .pay button:disabled{opacity:.45}
 
-#toast{position:fixed;left:16px;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:12px;z-index:20;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+#toast{position:fixed;left:16px;right:16px;bottom:calc(104px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:12px;z-index:20;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
 #toast.show{opacity:1;transform:none}
 #toast.err{background:var(--neg);color:#fff}
 .spin{text-align:center;padding:40px;color:var(--mute)}
@@ -89,12 +106,23 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="gj" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5CF0D2"/><stop offset="1" stop-color="#0E9C93"/></linearGradient>
+<linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE483"/><stop offset="1" stop-color="#FFA800"/></linearGradient>
+<linearGradient id="gu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FE0A0"/><stop offset="1" stop-color="#12805C"/></linearGradient>
+<symbol id="i-j" viewBox="0 0 24 24"><path d="M12 1.6 21.2 6.8v10.4L12 22.4 2.8 17.2V6.8z" fill="url(#gj)"/><path d="M14 6.6v6.6a2.7 2.7 0 0 1-2.7 2.7 2.7 2.7 0 0 1-2.5-1.7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="i-stars" viewBox="0 0 24 24"><path d="m12 1.8 2.9 6 6.5.9-4.7 4.6 1.1 6.5L12 16.7l-5.8 3.1 1.1-6.5L2.6 8.7l6.5-.9z" fill="url(#gs)" stroke="#E08A00" stroke-width=".6" stroke-linejoin="round"/></symbol>
+<symbol id="i-uzs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.4" fill="url(#gu)"/><text x="12" y="15.2" text-anchor="middle" font-size="8.4" font-weight="800" fill="#fff" font-family="system-ui,sans-serif">UZS</text></symbol>
+<symbol id="i-ton" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.4" fill="#2A8CF0"/><path d="M7.6 8h8.8L12 16.6z" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-uc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.4" fill="#E58A1F"/><text x="12" y="15.2" text-anchor="middle" font-size="8.6" font-weight="800" fill="#fff" font-family="system-ui,sans-serif">UC</text></symbol>
+</defs></svg>
+<header id="top" hidden><div class="in" id="tb"></div></header>
 <div id="app"><div class="spin">Yuklanmoqda…</div></div>
 <nav id="tabs" hidden role="tablist">
-  <button data-t="home" role="tab"><span class="ic">🏠</span>Bosh</button>
-  <button data-t="nft" role="tab"><span class="ic">🎁</span>NFT</button>
-  <button data-t="wallet" role="tab"><span class="ic">👛</span>Hamyon</button>
-  <button data-t="items" role="tab"><span class="ic">📦</span>Buyumlar</button>
+  <button data-t="home" role="tab"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Bosh</button>
+  <button data-t="nft" role="tab"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>NFT</button>
+  <button data-t="wallet" role="tab"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Hamyon</button>
+  <button data-t="items" role="tab"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Buyumlar</button>
 </nav>
 <div id="toast" role="status"></div>
 
@@ -108,7 +136,30 @@ const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 
 const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
             wd: "card", cv: ["UZS", "J"], uc: null, fatal: null };
-const CUR = {UZS: "So'm", J: "J🧧", STARS: "Stars ⭐️", TON: "TON"};
+const CUR = {UZS: "So'm", J: "J", STARS: "Stars", TON: "TON"};
+const ic = n => `<svg class="cur" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const short = n => n >= 100000 ? (n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : Math.round(n / 1000) + "K") : fmt(n);
+function insets() {
+  const r = document.documentElement.style;
+  const st = (tg && tg.safeAreaInset && tg.safeAreaInset.top) || 0, ct = (tg && tg.contentSafeAreaInset && tg.contentSafeAreaInset.top) || 0;
+  const full = !!(tg && tg.isFullscreen) || st + ct > 0;   // Telegram tugmalari (Yopish, ⋮) ustida turgan holat
+  r.setProperty("--st", full ? st + "px" : "0px");
+  r.setProperty("--sh", (full ? Math.max(ct, 44) : 52) + "px");
+  r.setProperty("--sl", full ? "92px" : "0px");
+  r.setProperty("--sr", full ? "80px" : "0px");
+}
+if (tg) { insets(); ["safeAreaChanged", "contentSafeAreaChanged", "fullscreenChanged"].forEach(e => { try { tg.onEvent(e, insets); } catch (x) {} }); }
+function topBar() {
+  const b = S.me.bal, z = S.me.frozen;
+  const chip = (k, icon, val, go) => `<div class="tchip">${ic(icon)}<span class="num">${val}</span><button class="plus" data-go="${go}" aria-label="${k} qo'shish"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
+  $("#tb").innerHTML = chip("J", "j", short(b.j), "j") + chip("So'm", "uzs", short(b.uzs), "uzs") + chip("Stars", "stars", short(b.stars), "stars");
+  $("#top").hidden = false;
+  document.querySelectorAll("[data-go]").forEach(x => x.onclick = () => {
+    const g = x.dataset.go; S.tab = "wallet";
+    if (g === "uzs") S.seg = "topup"; else { S.seg = "cv"; S.cv = ["UZS", g === "j" ? "J" : "STARS"]; }
+    window.scrollTo(0, 0); render();
+  });
+}
 
 async function api(path, opts = {}) {
   const h = Object.assign({ "X-Init-Data": INIT }, opts.headers || {});
@@ -141,9 +192,9 @@ function typing() { const a = document.activeElement; return a && ["INPUT", "SEL
 
 function render() {
   const app = $("#app");
-  if (S.fatal) { $("#tabs").hidden = true; app.innerHTML = `<div class="empty"><p>${esc(S.fatal)}</p><button class="btn alt" id="retry">Qayta urinish</button></div>`; $("#retry").onclick = () => refresh(true); return; }
+  if (S.fatal) { $("#tabs").hidden = true; $("#top").hidden = true; app.innerHTML = `<div class="empty"><p>${esc(S.fatal)}</p><button class="btn alt" id="retry">Qayta urinish</button></div>`; $("#retry").onclick = () => refresh(true); return; }
   if (!S.me) return;
-  $("#tabs").hidden = false;
+  $("#tabs").hidden = false; topBar();
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === S.tab));
   const view = { home: vHome, nft: vNft, wallet: vWallet, items: vItems }[S.tab]();
   app.innerHTML = hero() + view;
@@ -151,14 +202,9 @@ function render() {
 }
 
 function hero() {
-  const b = S.me.bal;
   return `<section class="hero"><small>Umumiy qiymat</small>
-    <div class="big num">${fmt(S.me.total_uzs)}<span>so'm</span></div>
-    <div class="coins">
-      <div class="coin"><b class="num">${fmt(b.stars)}</b><i>Stars ⭐️</i></div>
-      <div class="coin"><b class="num">${fmt(b.j)}</b><i>J🧧</i></div>
-      <div class="coin"><b class="num">${fmt(b.uzs)}</b><i>So'm</i></div>
-    </div></section>` + (S.me.frozen ? `<div class="banner">🔒 Hisobingiz muzlatilgan. Botda «Shartnoma → Hisobni muzlatish» bo'limida parol bilan oching.</div>` : "");
+    <div class="big num" style="margin-bottom:2px">${fmt(S.me.total_uzs)}<span>so'm</span></div></section>`
+    + (S.me.frozen ? `<div class="banner" style="margin-bottom:12px">🔒 Hisobingiz muzlatilgan. Botda «Shartnoma → Hisobni muzlatish» bo'limida parol bilan oching.</div>` : "");
 }
 
 function vHome() {
@@ -166,8 +212,8 @@ function vHome() {
   const hist = S.hist.length ? S.hist.map(t => `<div class="row"><div>${esc(t.label)}<div class="mute">${esc(t.t)}</div></div>
       <b class="num ${t.pos ? "pos" : "neg"}">${t.pos ? "+" : "−"}${esc(t.amount)} ${esc(t.cur)}</b></div>`).join("")
     : `<div class="empty">Hozircha amal yo'q. «Hamyon» bo'limidan hisobni to'ldiring.</div>`;
-  return `<div class="card"><div class="row"><span>TON</span><b class="num">${esc(b.ton)}</b></div>
-      <div class="row" style="margin-top:8px"><span>PUBG UC</span><b class="num">${fmt(b.uc)}</b></div></div>
+  const br = (icon, name, v) => `<div class="brow">${ic(icon)}<span>${name}</span><b class="num">${v}</b></div>`;
+  return `<div class="card">${br("j", "J", fmt(b.j))}${br("stars", "Stars", fmt(b.stars))}${br("uzs", "So'm", fmt(b.uzs))}${br("ton", "TON", esc(b.ton))}${br("uc", "PUBG UC", fmt(b.uc))}</div>
     <h2>Do'stlarni taklif qiling</h2>
     <div class="card"><div class="mute">Taklif qilinganlar: <b>${f.count}</b></div>
       <div class="copy"><span>${esc(f.link)}</span><button id="cp" data-v="${esc(f.link)}">Nusxa</button></div></div>
@@ -278,7 +324,7 @@ function preview() {
 function openBuy(id) {
   const n = S.nfts.find(x => x.id === id); if (!n) return;
   const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
-  const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} J🧧`, n.price_j > 0 && b.j >= n.price_j], ["stars", `${fmt(n.price_stars)} Stars ⭐️`, n.price_stars > 0 && b.stars >= n.price_stars]];
+  const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
   bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}"><div class="ph" ${n.photo ? `style="background-image:url('/photo/${n.id}')"` : ""}></div>
     <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="pay">${opts.map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
