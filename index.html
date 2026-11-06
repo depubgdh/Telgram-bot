@@ -95,7 +95,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end}
 .sheet{background:#101733;width:100%;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
 .sheet .ph{width:100%;aspect-ratio:1;max-height:48vh;border-radius:14px;background:#0A0F25 center/contain no-repeat;margin-bottom:10px;overflow:hidden;display:grid;place-items:center;font-size:60px}
-.ph svg,.ph video{width:100%;height:100%;object-fit:contain;display:block}
+.ph img,.ph svg,.ph video{width:100%;height:100%;object-fit:contain;display:block}
 .pay{display:grid;gap:8px;margin-top:12px}
 .pay button{display:flex;justify-content:space-between;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
 .pay button:disabled{opacity:.45}
@@ -124,12 +124,12 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .ads .dots{display:flex;justify-content:center;gap:6px;margin-top:8px}
 .ads .dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .2s,background .2s}
 .ads .dots i.on{width:18px;background:#7FA2FF}
-/* admin kartochkasi */
-.support{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px;border-radius:var(--r);background:linear-gradient(135deg,rgba(53,82,224,.35),rgba(124,58,237,.3));border:1px solid var(--glass-line);cursor:pointer;width:100%;text-align:left;color:var(--ink)}
-.support .av{flex:none;width:58px;height:58px;animation:floaty 3.2s ease-in-out infinite}
-.support .av svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
-.support b{display:block;font-size:16px}
-.support .go{margin-left:auto;flex:none;background:var(--gold);color:var(--gold-ink);font-weight:700;border-radius:999px;padding:8px 14px;font-size:14px}
+/* admin: tepa o'ng burchakdagi dumaloq stiker */
+#top{display:flex;align-items:center}
+#top .in{flex:1;min-width:0}
+.sup{flex:none;width:42px;height:42px;padding:0;border:2px solid var(--glass-line);border-radius:50%;background:none;margin-left:8px;animation:floaty 3.2s ease-in-out infinite;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.sup[hidden]{display:none}
+.sup svg{width:100%;height:100%;display:block;border-radius:50%}
 /* to'ldirish usullari */
 .tp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .tp button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:var(--r);padding:12px 4px 10px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -174,7 +174,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 <symbol id="i-ton" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.4" fill="#2A8CF0"/><path d="M7.6 8h8.8L12 16.6z" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></symbol>
 <symbol id="i-uc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.4" fill="#E58A1F"/><text x="12" y="15.2" text-anchor="middle" font-size="8.6" font-weight="800" fill="#fff" font-family="system-ui,sans-serif">UC</text></symbol>
 </defs></svg>
-<header id="top" hidden><div class="in" id="tb"></div></header>
+<header id="top" hidden><div class="in" id="tb"></div><button id="sup" class="sup" type="button" hidden aria-label="Adminga murojaat"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FA2FF"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><circle cx="32" cy="32" r="30" fill="url(#avbg)"/><path d="M14 58c2-12 10-17 18-17s16 5 18 17z" fill="#1B2E8F"/><rect x="28" y="36" width="8" height="8" rx="3" fill="#F2C9A5"/><ellipse cx="32" cy="27" rx="12" ry="13" fill="#F8D7B5"/><path d="M19.5 25c0-9 5-13.5 12.5-13.5S44.5 16 44.5 25c-3-4-7-6-12.5-6s-9.500 2-12.500 6z" fill="#2A1A3E"/><circle cx="27.500" cy="28" r="1.600" fill="#2A1A3E"/><circle cx="36.500" cy="28" r="1.600" fill="#2A1A3E"/><path d="M28 33.500c2.500 2.500 5.500 2.500 8 0" fill="none" stroke="#B8552F" stroke-width="1.600" stroke-linecap="round"/><path d="M18.500 27c0-10 5-16 13.500-16s13.500 6 13.500 16" fill="none" stroke="#F5B000" stroke-width="3" stroke-linecap="round"/><rect x="15.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><rect x="43.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><path d="M46 33c0 6-5 8-11 8.500" fill="none" stroke="#F5B000" stroke-width="2" stroke-linecap="round"/><circle cx="34" cy="41.500" r="2.400" fill="#F5B000"/></svg></button></header>
 <div id="app"><div class="spin">Yuklanmoqda…</div></div>
 <nav id="tabs" hidden role="tablist">
   <button data-t="home" role="tab"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Bosh</button>
@@ -213,6 +213,8 @@ function topBar() {
   const chip = (k, icon, val, go) => `<div class="tchip">${ic(icon)}<span class="num">${val}</span><button class="plus" data-go="${go}" aria-label="${k} qo'shish"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
   $("#tb").innerHTML = chip("J", "j", short(b.j), "j") + chip("So'm", "uzs", short(b.uzs), "uzs") + chip("Stars", "stars", short(b.stars), "stars");
   $("#top").hidden = false;
+  const sp = $("#sup"); sp.hidden = !S.me.support;
+  sp.onclick = () => { const u = "https://t.me/" + S.me.support; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } };
   document.querySelectorAll("[data-go]").forEach(x => x.onclick = () => {
     const g = x.dataset.go; S.tab = "wallet";
     if (g === "uzs") S.seg = "topup"; else { S.seg = "cv"; S.cv = ["UZS", g === "j" ? "J" : "STARS"]; }
@@ -296,8 +298,7 @@ function vHome() {
     : `<div class="empty">Hozircha amal yo'q. «Hamyon» bo'limidan hisobni to'ldiring.</div>`;
   const wc = (icon, name, v) => `<div class="wcard">${ic(icon)}<span>${name}</span><b class="num">${v}</b></div>`;
   const qk = (go, label, path) => `<button data-q="${go}"><svg viewBox="0 0 24 24">${path}</svg>${label}</button>`;
-  const sup = S.me.support ? `<button class="support" data-support type="button"><span class="av"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FA2FF"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><circle cx="32" cy="32" r="30" fill="url(#avbg)"/><path d="M14 58c2-12 10-17 18-17s16 5 18 17z" fill="#1B2E8F"/><rect x="28" y="36" width="8" height="8" rx="3" fill="#F2C9A5"/><ellipse cx="32" cy="27" rx="12" ry="13" fill="#F8D7B5"/><path d="M19.5 25c0-9 5-13.5 12.5-13.5S44.5 16 44.5 25c-3-4-7-6-12.5-6s-9.500 2-12.500 6z" fill="#2A1A3E"/><circle cx="27.500" cy="28" r="1.600" fill="#2A1A3E"/><circle cx="36.500" cy="28" r="1.600" fill="#2A1A3E"/><path d="M28 33.500c2.500 2.500 5.500 2.500 8 0" fill="none" stroke="#B8552F" stroke-width="1.600" stroke-linecap="round"/><path d="M18.500 27c0-10 5-16 13.500-16s13.500 6 13.500 16" fill="none" stroke="#F5B000" stroke-width="3" stroke-linecap="round"/><rect x="15.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><rect x="43.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><path d="M46 33c0 6-5 8-11 8.500" fill="none" stroke="#F5B000" stroke-width="2" stroke-linecap="round"/><circle cx="34" cy="41.500" r="2.400" fill="#F5B000"/></svg></span><span><b>Adminga murojaat</b><span class="mute">Savol yoki muammo bo'lsa yozing</span></span><span class="go">Yozish</span></button>` : "";
-  return sup + `<div class="wallets">${wc("j", "J", fmt(b.j))}${wc("stars", "Stars", fmt(b.stars))}${wc("uzs", "So'm", fmt(b.uzs))}${wc("ton", "TON", esc(b.ton))}${wc("uc", "PUBG UC", fmt(b.uc))}</div>
+  return `<div class="wallets">${wc("j", "J", fmt(b.j))}${wc("stars", "Stars", fmt(b.stars))}${wc("uzs", "So'm", fmt(b.uzs))}${wc("ton", "TON", esc(b.ton))}${wc("uc", "PUBG UC", fmt(b.uc))}</div>
     <div class="quick">
       ${qk("topup", "To'ldirish", '<path d="M12 5v14M5 12h14"/>')}
       ${qk("wd", "Yechish", '<path d="M12 19V5M6 11l6-6 6 6"/>')}
@@ -311,8 +312,10 @@ function vHome() {
     <h2>So'nggi amallar</h2><div class="card hist">${hist}</div>`;
 }
 
-function mbox(n) {
+function mbox(n, full) {
   if (!n.photo) return `<div class="ph">🎁</div>`;
+  if (!full && n.kind !== "image")   // ro'yxatda animatsiya o'ynamaydi (telefon qotmasligi uchun): yengil statik rasm
+    return `<div class="ph"><img loading="lazy" decoding="async" alt="" src="/thumb/${n.id}" onerror="this.parentNode.textContent='🎁'"></div>`;
   if (n.kind === "lottie") return `<div class="ph" data-lot="/media/${n.id}"></div>`;
   if (n.kind === "video") return `<div class="ph"><video src="/media/${n.id}" autoplay loop muted playsinline></video></div>`;
   return `<div class="ph" style="background-image:url('/media/${n.id}')"></div>`;
@@ -433,7 +436,6 @@ function bind() {
   const app = $("#app");
   app.querySelectorAll("[data-v]").forEach(cp => cp.onclick = () => { const v = cp.dataset.v; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast("Nusxalandi"), () => toast("Nusxalab bo'lmadi, qo'lda belgilang", true)); });
   app.querySelectorAll("[data-tp]").forEach(b => b.onclick = () => { S.tp = b.dataset.tp; render(); });
-  const sp = $("[data-support]"); if (sp) sp.onclick = () => { const u = "https://t.me/" + S.me.support; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } };
   app.querySelectorAll("[data-sa]").forEach(b => b.onclick = () => { $("#a").value = b.dataset.sa; });
   app.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { S.tab = "wallet"; S.seg = b.dataset.q; window.scrollTo(0, 0); render(); });
   initAds();
@@ -497,7 +499,7 @@ function openBuy(id) {
   const n = S.nfts.find(x => x.id === id); if (!n) return;
   const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
   const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["ton", `${n.price_ton} ${ic('ton')}`, n.price_ton > 0 && parseFloat(b.ton) >= n.price_ton], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
-  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n)}
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n, true)}
     <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="pay">${opts.filter(o => !/^0(\.0+)? /.test(o[1])).map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
     <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;

@@ -19,6 +19,7 @@ from aiogram.types import (BufferedInputFile, InlineKeyboardButton,
                            InlineKeyboardMarkup, LabeledPrice)
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+import httpx
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
@@ -29,6 +30,7 @@ from bot import (KINDS, WD, bot, create_card_topup, fmt, fmt_ton,
 from db import (Banner, Nft, Request, Session, Transaction, User, UserItem,
                 change_balance, get_setting, get_user, pay_referral)
 
+from nft_fetch import parse_link  # noqa: E402
 from uc import uc_kb  # noqa: E402
 
 app = FastAPI()
@@ -252,6 +254,42 @@ async def nft_media(nft_id: int):
             _photo_cache.clear()
         hit = _photo_cache[nft_id] = (data, ctype)
     return Response(hit[0], media_type=hit[1], headers={"Cache-Control": "public, max-age=3600"})
+
+
+_thumb_cache: dict[int, bytes] = {}
+_thumb_miss: set[int] = set()
+
+
+@app.get("/thumb/{nft_id}")
+async def nft_thumb(nft_id: int):
+    """NFT ro'yxati uchun YENGIL statik rasm (animatsiyasiz) — telefon qotmasligi uchun.
+    Animatsiya faqat sotib olish oynasi ochilganda yuklanadi."""
+    data = _thumb_cache.get(nft_id)
+    if data is None and nft_id not in _thumb_miss:
+        async with Session() as s:
+            n = await s.get(Nft, nft_id)
+        if not n:
+            raise HTTPException(404, "NFT yo'q")
+        g = parse_link(n.link or "")
+        if g:
+            try:
+                async with httpx.AsyncClient(timeout=15, follow_redirects=True) as cl:
+                    r = await cl.get(f"https://nft.fragment.com/gift/{g[0].lower()}-{g[1]}.webp")
+                if r.status_code == 200 and len(r.content) > 100:
+                    data = r.content
+            except Exception:
+                pass
+        if data is None and media_kind(n.media) == "image":
+            return await nft_media(nft_id)       # oddiy rasm bo'lsa o'zi yengil
+        if data is None:
+            _thumb_miss.add(nft_id)
+        else:
+            if len(_thumb_cache) > 150:
+                _thumb_cache.clear()
+            _thumb_cache[nft_id] = data
+    if data is None:
+        raise HTTPException(404, "Rasm yo'q")
+    return Response(data, media_type="image/webp", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/nfts")
