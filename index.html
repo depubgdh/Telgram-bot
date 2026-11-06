@@ -124,6 +124,41 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .ads .dots{display:flex;justify-content:center;gap:6px;margin-top:8px}
 .ads .dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .2s,background .2s}
 .ads .dots i.on{width:18px;background:#7FA2FF}
+/* admin kartochkasi */
+.support{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px;border-radius:var(--r);background:linear-gradient(135deg,rgba(53,82,224,.35),rgba(124,58,237,.3));border:1px solid var(--glass-line);cursor:pointer;width:100%;text-align:left;color:var(--ink)}
+.support .av{flex:none;width:58px;height:58px;animation:floaty 3.2s ease-in-out infinite}
+.support .av svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+.support b{display:block;font-size:16px}
+.support .go{margin-left:auto;flex:none;background:var(--gold);color:var(--gold-ink);font-weight:700;border-radius:999px;padding:8px 14px;font-size:14px}
+/* to'ldirish usullari */
+.tp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.tp button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:var(--r);padding:12px 4px 10px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.tp button[aria-pressed="true"]{background:#3552E0;border-color:#3552E0;color:#fff}
+.tp .cur{width:30px;height:30px}
+.tp .mini{width:30px;height:30px;display:grid;place-items:center}
+.tp .mini svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.head{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.head b{font-size:16px}
+.brands{display:flex;gap:8px;margin:0 0 10px}
+.brand{font-weight:800;letter-spacing:.6px;font-size:13px;padding:6px 12px;border-radius:8px;color:#fff}
+.brand.humo{background:linear-gradient(135deg,#0E9F8E,#0A6E9A)}
+.brand.uzcard{background:linear-gradient(135deg,#2B5BD7,#1B2E8F)}
+.need{margin-top:10px;padding:10px 12px;border-radius:11px;background:rgba(245,176,0,.12);border:1px solid rgba(245,176,0,.35);font-size:15px}
+.need b{color:var(--gold)}
+.bigton{width:54px;height:54px;flex:none;animation:floaty 3s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(42,140,240,.6))}
+.starA{position:relative;flex:none;width:58px;height:58px;display:grid;place-items:center;animation:floaty 3s ease-in-out infinite}
+.starA svg{width:100%;height:100%;filter:drop-shadow(0 0 12px rgba(255,170,0,.7));animation:pulse 2s ease-in-out infinite}
+.starA i{position:absolute;width:11px;height:11px;background:#fff;clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);opacity:0;animation:tw 1.8s infinite}
+.starA i:nth-of-type(1){top:-2px;right:2px}
+.starA i:nth-of-type(2){bottom:4px;left:-4px;animation-delay:.6s;width:9px;height:9px}
+.starA i:nth-of-type(3){top:14px;right:-6px;animation-delay:1.2s;width:8px;height:8px}
+.wait{text-align:center;padding:26px 14px}
+.ring{width:58px;height:58px;margin:0 auto 14px;border-radius:50%;border:5px solid rgba(127,162,255,.25);border-top-color:#7FA2FF;animation:spin 1s linear infinite}
+.cancelled{color:var(--mute)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes tw{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -158,7 +193,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 
 const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
-            wd: "card", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0 };
+            wd: "card", tp: "card", pend: null, tonAmt: "", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0 };
 const CUR = {UZS: "So'm", J: "J", STARS: "Stars", TON: "TON"};
 const LOGO = "data:image/jpeg;base64,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";
 const ic = n => n === "j" ? `<img class="cur" alt="J" src="${LOGO}">` : `<svg class="cur" aria-hidden="true"><use href="#i-${n}"/></svg>`;
@@ -257,11 +292,12 @@ function initAds() {
 function vHome() {
   const b = S.me.bal, f = S.me.friends;
   const hist = S.hist.length ? S.hist.map(t => `<div class="row"><div>${esc(t.label)}<div class="mute">${esc(t.t)}</div></div>
-      <b class="num ${t.pos ? "pos" : "neg"}">${t.pos ? "+" : "−"}${esc(t.amount)} ${esc(t.cur)}</b></div>`).join("")
+      <b class="num ${t.cancel ? "cancelled" : t.pos ? "pos" : "neg"}">${t.cancel ? "✖ " : t.pos ? "+" : "−"}${esc(t.amount)} ${esc(t.cur)}</b></div>`).join("")
     : `<div class="empty">Hozircha amal yo'q. «Hamyon» bo'limidan hisobni to'ldiring.</div>`;
   const wc = (icon, name, v) => `<div class="wcard">${ic(icon)}<span>${name}</span><b class="num">${v}</b></div>`;
   const qk = (go, label, path) => `<button data-q="${go}"><svg viewBox="0 0 24 24">${path}</svg>${label}</button>`;
-  return `<div class="wallets">${wc("j", "J", fmt(b.j))}${wc("stars", "Stars", fmt(b.stars))}${wc("uzs", "So'm", fmt(b.uzs))}${wc("ton", "TON", esc(b.ton))}${wc("uc", "PUBG UC", fmt(b.uc))}</div>
+  const sup = S.me.support ? `<button class="support" data-support type="button"><span class="av"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="avbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FA2FF"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><circle cx="32" cy="32" r="30" fill="url(#avbg)"/><path d="M14 58c2-12 10-17 18-17s16 5 18 17z" fill="#1B2E8F"/><rect x="28" y="36" width="8" height="8" rx="3" fill="#F2C9A5"/><ellipse cx="32" cy="27" rx="12" ry="13" fill="#F8D7B5"/><path d="M19.5 25c0-9 5-13.5 12.5-13.5S44.5 16 44.5 25c-3-4-7-6-12.5-6s-9.500 2-12.500 6z" fill="#2A1A3E"/><circle cx="27.500" cy="28" r="1.600" fill="#2A1A3E"/><circle cx="36.500" cy="28" r="1.600" fill="#2A1A3E"/><path d="M28 33.500c2.500 2.500 5.500 2.500 8 0" fill="none" stroke="#B8552F" stroke-width="1.600" stroke-linecap="round"/><path d="M18.500 27c0-10 5-16 13.500-16s13.500 6 13.500 16" fill="none" stroke="#F5B000" stroke-width="3" stroke-linecap="round"/><rect x="15.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><rect x="43.500" y="25" width="5" height="9" rx="2.500" fill="#F5B000"/><path d="M46 33c0 6-5 8-11 8.500" fill="none" stroke="#F5B000" stroke-width="2" stroke-linecap="round"/><circle cx="34" cy="41.500" r="2.400" fill="#F5B000"/></svg></span><span><b>Adminga murojaat</b><span class="mute">Savol yoki muammo bo'lsa yozing</span></span><span class="go">Yozish</span></button>` : "";
+  return sup + `<div class="wallets">${wc("j", "J", fmt(b.j))}${wc("stars", "Stars", fmt(b.stars))}${wc("uzs", "So'm", fmt(b.uzs))}${wc("ton", "TON", esc(b.ton))}${wc("uc", "PUBG UC", fmt(b.uc))}</div>
     <div class="quick">
       ${qk("topup", "To'ldirish", '<path d="M12 5v14M5 12h14"/>')}
       ${qk("wd", "Yechish", '<path d="M12 19V5M6 11l6-6 6 6"/>')}
@@ -289,7 +325,7 @@ function initLottie(root) {
 }
 function attrs(n) {
   return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
-    .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(a[2]) + "%" : ""}`).join("<br>");
+    .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(String(a[2]).replace(/%+$/, "")) + "%" : ""}`).join("<br>");
 }
 function vNft() {
   if (!S.nfts.length) return `<div class="empty">Hozir sotuvda NFT yo'q. Tez orada yangilari qo'shiladi.</div>`;
@@ -297,6 +333,7 @@ function vNft() {
     <div class="nft">${mbox(n)}
     <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="price num">${fmt(n.price_uzs)} so'm</div>
+    <div class="attr num" style="margin:-4px 0 8px">${fmt(n.price_j)} J · ${n.price_ton} TON</div>
     <button class="btn alt" data-buy="${n.id}">Sotib olish</button></div></div>`).join("") + `</div>`;
 }
 function vItems() {
@@ -311,15 +348,57 @@ function vWallet() {
   const head = `<div class="seg" role="tablist">${seg.map(s => `<button role="tab" data-seg="${s[0]}" aria-selected="${S.seg === s[0]}">${s[1]}</button>`).join("")}</div>`;
   return head + ({ topup: wTopup, wd: wWd, cv: wCv, uc: wUc }[S.seg])();
 }
+function starIcon() { return `<span class="starA"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-stars"/></svg><i></i><i></i><i></i></span>`; }
 function wTopup() {
+  const tile = (k, icon, name) => `<button type="button" data-tp="${k}" aria-pressed="${S.tp === k}">${icon}${name}</button>`;
+  const card = `<span class="mini"><svg viewBox="0 0 24 24"><rect x="2.500" y="5" width="19" height="14" rx="3"/><path d="M2.500 10h19M6.500 15h4"/></svg></span>`;
+  return `<div class="tp">${tile("stars", ic("stars"), "Stars")}${tile("ton", ic("ton"), "TON")}${tile("card", card, "Karta")}</div>`
+    + ({ stars: tpStars, ton: tpTon, card: tpCard }[S.tp])();
+}
+function tpCard() {
   const t = S.me.topup;
-  return `<div class="card"><b>Kartaga o'tkazing</b>
-    <div class="copy"><span class="num">${esc(t.card || "Karta hali kiritilmagan")}</span>${t.card ? `<button id="cp" data-v="${esc(t.card)}">Nusxa</button>` : ""}</div>
+  return `<div class="card"><div class="brands"><span class="brand humo">HUMO</span><span class="brand uzcard">UZCARD</span></div><b>Kartaga o'tkazing</b>
+    <div class="copy"><span class="num">${esc(t.card || "Karta hali kiritilmagan")}</span>${t.card ? `<button type="button" data-v="${esc(t.card)}">Nusxa</button>` : ""}</div>
     <div class="mute" style="margin-top:6px">Qabul qiluvchi: ${esc(t.owner || "—")}<br>Minimal: ${fmt(t.min)} so'm · Komissiya: ${t.fee}%</div></div>
     <form id="f-topup" class="card"><label for="a">O'tkazgan summangiz (so'm)</label>
     <input id="a" inputmode="numeric" placeholder="${fmt(t.min)}" required>
     <label for="f">Chek (rasm yoki fayl)</label><input id="f" type="file" accept="image/*,application/pdf" required>
     <button class="btn">Chekni yuborish</button></form>`;
+}
+function tpStars() {
+  return `<form id="f-stars" class="card"><div class="head">${starIcon()}<div><b>Stars bilan to'ldirish</b><div class="mute">Komissiyasiz (0%)</div></div></div>
+    <div class="chips" style="margin-top:10px">${[50, 100, 250, 500, 1000].map(x => `<button type="button" class="chip" data-sa="${x}">${x} ⭐</button>`).join("")}</div>
+    <label for="a">Stars miqdori</label><input id="a" inputmode="numeric" placeholder="100" required>
+    <button class="btn">⭐ To'ldirish</button></form>`;
+}
+function tpTon() {
+  const t = S.me.topup;
+  if (S.pend) return `<div class="card wait"><div class="ring" role="progressbar" aria-label="Kutilmoqda"></div><b>Tasdiqlanishi kutilmoqda…</b>
+    <div class="mute" style="margin-top:6px">${esc(S.pend.amount)} TON · so'rov #${S.pend.id}<br>Admin tasdiqlagach balansingizga tushadi.</div></div>`;
+  return `<form id="f-ton" class="card"><div class="head"><svg class="bigton" aria-hidden="true"><use href="#i-ton"/></svg><div><b>TON bilan to'ldirish</b><div class="mute">Pastdagi manzilga yuboring</div></div></div>
+    <label for="a">Miqdor (TON)</label><input id="a" inputmode="decimal" placeholder="1" value="${esc(S.tonAmt)}" required>
+    <label>TON manzil</label><div class="copy"><span class="num" style="font-size:13px">${esc(t.ton_wallet)}</span><button type="button" data-v="${esc(t.ton_wallet)}">Nusxa</button></div>
+    <div class="need" id="need"></div>
+    <label>Izoh (MEMO) — albatta yozing</label><div class="copy"><span class="num">${esc(t.ton_memo)}</span><button type="button" data-v="${esc(t.ton_memo)}">Nusxa</button></div>
+    <button class="btn">To'ldirish</button>
+    <div class="mute" style="margin-top:8px">Yuborib bo'lgach «To'ldirish» ni bosing. Admin tekshirib tasdiqlaydi.</div></form>`;
+}
+function needTon() {
+  const a = $("#a"), n = $("#need"); if (!a || !n) return;
+  S.tonAmt = a.value;
+  const v = parseFloat(a.value.replace(",", ".")), r = S.me.rates.ton_uzs;
+  n.innerHTML = v > 0 ? `Yuborishingiz kerak: <b>${esc(String(+v.toFixed(4)))} TON</b>${r ? ` <span class="mute">≈ ${fmt(Math.round(v * r))} so'm</span>` : ""}` : `Yuboriladigan miqdorni kiriting`;
+}
+async function pollPend() {
+  if (!S.pend || S.busy) return;
+  try {
+    const r = await api("/api/req/" + S.pend.id);
+    if (r.status === "pending") return;
+    const ok = r.status === "approved"; S.pend = null;
+    try { localStorage.removeItem("pend"); } catch (e) {}
+    toast(ok ? "✅ Hisobingiz TON bilan to'ldirildi" : "❌ To'ldirish bekor qilindi", !ok);
+    await refresh(true);
+  } catch (e) {}
 }
 function wWd() {
   const w = S.me.withdraw, m = w[S.wd];
@@ -352,8 +431,10 @@ function wUc() {
 
 function bind() {
   const app = $("#app");
-  const cp = $("#cp");
-  if (cp) cp.onclick = () => { const v = cp.dataset.v; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast("Nusxalandi"), () => toast("Nusxalab bo'lmadi, qo'lda belgilang", true)); };
+  app.querySelectorAll("[data-v]").forEach(cp => cp.onclick = () => { const v = cp.dataset.v; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast("Nusxalandi"), () => toast("Nusxalab bo'lmadi, qo'lda belgilang", true)); });
+  app.querySelectorAll("[data-tp]").forEach(b => b.onclick = () => { S.tp = b.dataset.tp; render(); });
+  const sp = $("[data-support]"); if (sp) sp.onclick = () => { const u = "https://t.me/" + S.me.support; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } };
+  app.querySelectorAll("[data-sa]").forEach(b => b.onclick = () => { $("#a").value = b.dataset.sa; });
   app.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { S.tab = "wallet"; S.seg = b.dataset.q; window.scrollTo(0, 0); render(); });
   initAds();
   app.querySelectorAll("[data-seg]").forEach(b => b.onclick = () => { S.seg = b.dataset.seg; render(); });
@@ -370,6 +451,28 @@ function bind() {
     };
   };
   run("#f-topup", () => { const fd = new FormData(); fd.append("amount", $("#a").value.replace(/\D/g, "")); fd.append("file", $("#f").files[0]); return api("/api/receipt", { method: "POST", body: fd }); });
+  run("#f-stars", async () => {
+    const n = parseInt($("#a").value.replace(/\D/g, ""), 10);
+    if (!(n > 0)) throw new Error("Stars miqdorini kiriting");
+    if (!(tg && tg.openInvoice)) throw new Error("Stars bilan to'lash uchun Mini App'ni Telegram ichidan oching");
+    const r = await api("/api/topup/stars", { method: "POST", body: { amount: n } });
+    return new Promise(res => tg.openInvoice(r.url, st => { setTimeout(refresh, 2500, true); res({ msg: st === "paid" ? "✅ To'lov qabul qilindi, Stars hisobingizga qo'shiladi" : "To'lov bekor qilindi" }); }));
+  });
+  const ft = $("#f-ton");
+  if (ft) {
+    needTon(); $("#a").oninput = needTon;
+    ft.onsubmit = async e => {
+      e.preventDefault(); if (S.busy) return;
+      S.busy = true; const btn = ft.querySelector(".btn"); btn.disabled = true;
+      try {
+        const amount = $("#a").value;
+        const r = await api("/api/topup/ton", { method: "POST", body: { amount } });
+        S.pend = { id: r.id, amount: String(+parseFloat(amount.replace(",", ".")).toFixed(4)) }; S.tonAmt = "";
+        try { localStorage.setItem("pend", JSON.stringify(S.pend)); } catch (x) {}
+        S.busy = false; toast(r.msg); render();
+      } catch (er) { S.busy = false; btn.disabled = false; toast(er.message, true); }
+    };
+  }
   run("#f-wd", () => api("/api/withdraw", { method: "POST", body: { method: S.wd, amount: $("#a").value, details: $("#d").value } }));
   run("#f-cv", () => api("/api/convert", { method: "POST", body: { a: $("#ca").value, b: $("#cb").value, amount: $("#a").value } }));
   run("#f-uc", () => { if (!S.uc) return Promise.reject(new Error("Avval UC paketini tanlang")); return api("/api/uc", { method: "POST", body: { qty: S.uc, pid: $("#pid").value } }); });
@@ -393,17 +496,16 @@ function preview() {
 function openBuy(id) {
   const n = S.nfts.find(x => x.id === id); if (!n) return;
   const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
-  const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
+  const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["ton", `${n.price_ton} ${ic('ton')}`, n.price_ton > 0 && parseFloat(b.ton) >= n.price_ton], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
   bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n)}
     <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
-    <div class="pay">${opts.map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
-    ${n.link ? `<button class="btn alt" id="lk">🔗 NFT ni ko'rish</button>` : ""}<button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
+    <div class="pay">${opts.filter(o => !/^0(\.0+)? /.test(o[1])).map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
+    <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
   document.body.appendChild(bg);
   initLottie(bg);
   const close = () => bg.remove();
   bg.onclick = e => { if (e.target === bg) close(); };
   $("#x", bg).onclick = close;
-  const lk = $("#lk", bg); if (lk) lk.onclick = () => { try { if (tg && /^https:\/\/t\.me\//.test(n.link) && tg.openTelegramLink) tg.openTelegramLink(n.link); else if (tg && tg.openLink) tg.openLink(n.link); else window.open(n.link, "_blank"); } catch (e) { window.open(n.link, "_blank"); } };
   bg.querySelectorAll("[data-c]").forEach(btn => btn.onclick = async () => {
     bg.querySelectorAll("button").forEach(x => x.disabled = true);
     try { const r = await api("/api/nft/buy", { method: "POST", body: { nft_id: id, cur: btn.dataset.c } }); close(); toast(r.msg); S.tab = "items"; await refresh(true); }
@@ -416,6 +518,8 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab
 // botdagi o'zgarishlar bilan bir xil bo'lishi uchun har 15 soniyada yangilanadi
 setInterval(() => { if (!document.hidden && !S.busy) refresh(false); }, 15000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
+setInterval(pollPend, 4000);
+try { const p = JSON.parse(localStorage.getItem("pend") || "null"); if (p && p.id) S.pend = p; } catch (e) {}
 refresh(true);
 </script>
 </body>

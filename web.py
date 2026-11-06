@@ -2,6 +2,7 @@
 
 Bot bilan BIR XIL bazadan o'qiydi va yozadi — shuning uchun balans, tarix va buyumlar
 botda ham, Mini App'da ham doim bir xil. Har bir so'rov Telegram imzosi (initData) bilan tekshiriladi."""
+import gzip
 import hashlib
 import hmac
 import html
@@ -15,7 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl
 
 from aiogram.types import (BufferedInputFile, InlineKeyboardButton,
-                           InlineKeyboardMarkup)
+                           InlineKeyboardMarkup, LabeledPrice)
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
@@ -24,7 +25,7 @@ from sqlalchemy import func, select
 import config
 from admins import admin_ids
 from bot import (KINDS, WD, bot, create_card_topup, fmt, fmt_ton,
-                 is_subscribed, j_cost, nft_card_text, rate_uzs)
+                 is_subscribed, j_cost, nft_card_text, rate_uzs, ton_cost)
 from db import (Banner, Nft, Request, Session, Transaction, User, UserItem,
                 change_balance, get_setting, get_user, pay_referral)
 
@@ -179,7 +180,9 @@ async def me(x_init_data: str = Header(...)):
         "total_uzs": 0 if u.frozen else int(total),
         "rates": rates,
         "topup": {"card": config.CARD_NUMBER, "owner": config.CARD_OWNER,
-                  "min": int(await get_setting("topup_min")), "fee": float(await get_setting("topup_card_fee"))},
+                  "min": int(await get_setting("topup_min")), "fee": float(await get_setting("topup_card_fee")),
+                  "ton_wallet": config.TON_WALLET, "ton_memo": f"U{u.tg_id}", "ton_min": 0.1},
+        "support": config.SUPPORT_USERNAME,
         "withdraw": {k: {"label": m["label"], "cur": m["cur"], "min": int(m["min"]),
                          "fee": float(m["fee"]), "ask": m["ask"]} for k, m in methods.items()},
         "uc_packs": [{"qty": q, "price": int(rates["uc_uzs"] * q)} for q in UC_PACKS],
@@ -199,7 +202,8 @@ async def history(x_init_data: str = Header(...)):
     for t in rows:
         amt = Decimal(t.amount)
         out.append({"t": f"{t.created_at:%d.%m %H:%M}", "label": KINDS.get(t.kind, t.kind), "cur": t.currency,
-                    "amount": fmt_ton(abs(amt)) if t.currency == "TON" else fmt(abs(amt)), "pos": amt > 0})
+                    "amount": fmt_ton(abs(amt)) if t.currency == "TON" else fmt(abs(amt)),
+                    "pos": amt > 0 and t.kind != "topup_rejected", "cancel": t.kind == "topup_rejected"})
     return out
 
 
@@ -253,13 +257,13 @@ async def nft_media(nft_id: int):
 @app.get("/api/nfts")
 async def nfts(x_init_data: str = Header(...)):
     await auth(x_init_data)
-    jr = await get_setting("j_uzs")
+    jr, tr = await get_setting("j_uzs"), await get_setting("ton_uzs")
     async with Session() as s:
         items = (await s.execute(select(Nft).where(Nft.active, Nft.stock > 0).order_by(Nft.id))).scalars().all()
     return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id), "kind": media_kind(n.media), "link": n.link or "",
              "model": n.model, "model_pct": n.model_pct, "backdrop": n.backdrop, "backdrop_pct": n.backdrop_pct,
              "symbol": n.symbol, "symbol_pct": n.symbol_pct, "price_uzs": int(n.price_uzs),
-             "price_j": j_cost(n.price_uzs, jr), "price_stars": int(n.price_stars), "stock": int(n.stock)}
+             "price_j": j_cost(n.price_uzs, jr), "price_ton": float(ton_cost(n.price_uzs, tr)), "price_stars": int(n.price_stars), "stock": int(n.stock)}
             for n in items]
 
 
@@ -272,9 +276,10 @@ class BuyIn(BaseModel):
 async def nft_buy(body: BuyIn, x_init_data: str = Header(...)):
     u = await auth(x_init_data, write=True)
     cur = body.cur.lower()
-    if cur not in ("uzs", "stars", "j"):
+    if cur not in ("uzs", "stars", "j", "ton"):
         raise HTTPException(400, "Noto'g'ri valyuta")
     stars_rate, j_rate, ref_pct = await get_setting("stars_uzs"), await get_setting("j_uzs"), await get_setting("ref_nft_pct")
+    ton_rate = await get_setting("ton_uzs")
     async with Session() as s:
         n = await s.get(Nft, body.nft_id, with_for_update=True)   # ikki kishi bir vaqtda olmasligi uchun qulflanadi
         if not n or not n.active or n.stock <= 0:
@@ -285,23 +290,27 @@ async def nft_buy(body: BuyIn, x_init_data: str = Header(...)):
         elif cur == "stars":
             price = int(n.price_stars)
             base = Decimal(price) * stars_rate
+        elif cur == "ton":
+            price = ton_cost(n.price_uzs, ton_rate)
+            base = price * ton_rate
         else:
             price = j_cost(n.price_uzs, j_rate)
             base = Decimal(price) * j_rate
         if price <= 0:
             raise HTTPException(400, "Bu usulda sotib olib bo'lmaydi")
+        price_txt = fmt_ton(price) if cur == "ton" else fmt(price)
         if not await change_balance(s, u.id, cur.upper(), Decimal(-price), "buy_nft", note=n.title):
             raise HTTPException(400, "Balansda mablag' yetarli emas")
         n.stock -= 1
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{fmt(price)} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{price_txt} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await tell_admins(f"🎁 NFT sotildi (Mini App): <b>{html.escape(n.title)}</b>\n"
                       f"Xaridor: {u.tg_id} @{u.username or '-'} {u.phone}\n"
-                      f"To'lov: {fmt(price)} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
+                      f"To'lov: {price_txt} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
     if ref_info:
         await tell(ref_info[0], f"💰 Do'stlaringizdan biri NFT xarid qildi: sizga +{fmt(ref_info[1])} so'm referal foyda.")
     return {"ok": True, "msg": "Xarid qilindi! Admin NFT ni tez orada yuboradi."}
@@ -443,6 +452,61 @@ async def receipt(x_init_data: str = Header(...), amount: int = Form(...), file:
                                   caption="📎 Chek qabul qilindi, admin tekshiradi.")
     await create_card_topup(u.tg_id, Decimal(amount), msg.document.file_id)
     return {"ok": True, "msg": "Chek adminga yuborildi. Tasdiqlangach balansingiz to'ladi."}
+
+
+# ------------------------------------------------------------------ TON / Stars bilan to'ldirish
+class TonIn(BaseModel):
+    amount: str
+
+
+@app.post("/api/topup/ton")
+async def topup_ton(body: TonIn, x_init_data: str = Header(...)):
+    """TON yuborilganini bildiradi: admin tasdiqlasa hisobga tushadi, rad etsa tarixda 'bekor qilindi' bo'ladi."""
+    u = await auth(x_init_data, write=True)
+    if not config.TON_WALLET:
+        raise HTTPException(400, "TON manzil hali sozlanmagan")
+    amt = to_dec(body.amount).quantize(Decimal("0.0001"))
+    if amt < Decimal("0.1"):
+        raise HTTPException(400, "Minimal miqdor: 0.1 TON")
+    async with Session() as s:
+        pend = await s.scalar(select(func.count(Request.id)).where(
+            Request.user_id == u.id, Request.kind == "topup", Request.method == "ton", Request.status == "pending"))
+        if (pend or 0) >= 3:
+            raise HTTPException(429, "Sizda kutilayotgan so'rovlar ko'p. Admin tasdiqlashini kuting")
+        r = Request(user_id=u.id, kind="topup", method="ton", currency="TON", amount=amt, fee=Decimal(0),
+                    details=f"U{u.tg_id}")
+        s.add(r)
+        await s.commit()
+    await tell_admins(f"🪙 <b>TON to'ldirish #{r.id}</b> (Mini App)\n👤 {u.tg_id} @{u.username or '-'} {u.phone}\n"
+                      f"Miqdor: <b>{fmt_ton(amt)} TON</b>\nIzoh (MEMO): <code>U{u.tg_id}</code>\n"
+                      f"Hamyoningizni tekshiring: <code>{config.TON_WALLET}</code>", decide_kb(r.id))
+    return {"ok": True, "id": r.id, "msg": "So'rov adminga yuborildi. Tasdiqlanishini kuting."}
+
+
+@app.get("/api/req/{rid}")
+async def req_status(rid: int, x_init_data: str = Header(...)):
+    u = await auth(x_init_data)
+    async with Session() as s:
+        r = await s.get(Request, rid)
+    if not r or r.user_id != u.id:
+        raise HTTPException(404, "So'rov topilmadi")
+    return {"status": r.status}
+
+
+class StarsIn(BaseModel):
+    amount: int
+
+
+@app.post("/api/topup/stars")
+async def topup_stars(body: StarsIn, x_init_data: str = Header(...)):
+    """Telegram Stars hisob-fakturasi havolasini yaratadi; to'lov botdagi 'successful_payment' orqali hisobga tushadi."""
+    u = await auth(x_init_data, write=True)
+    if body.amount < 1 or body.amount > 100000:
+        raise HTTPException(400, "Miqdor 1 dan 100000 gacha bo'lsin")
+    url = await bot.create_invoice_link(title="Hisobni to'ldirish", description=f"{body.amount} Stars",
+                                        payload=f"topup_stars:{body.amount}", provider_token="", currency="XTR",
+                                        prices=[LabeledPrice(label="Stars", amount=body.amount)])
+    return {"url": url}
 
 
 # ------------------------------------------------------------------ reklama bannerlari

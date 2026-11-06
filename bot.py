@@ -384,8 +384,6 @@ async def nft_view(c: CallbackQuery):
         rows.append([InlineKeyboardButton(text=f"{fmt_ton(tc)} TON bilan", callback_data=f"nft:b:ton:{nid}")])
     if n.price_stars > 0:
         rows.append([InlineKeyboardButton(text=f"{n.price_stars} ⭐ bilan", callback_data=f"nft:b:stars:{nid}")])
-    if n.link and n.link.startswith("https://"):
-        rows.append([InlineKeyboardButton(text="🔗 NFT ni ko'rish", url=n.link)])
     rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="nft:list")])
     kb = InlineKeyboardMarkup(inline_keyboard=rows)
     cap = nft_card_text(n, jc, tc=tc)
@@ -718,12 +716,13 @@ async def wd_details(m: Message, state: FSMContext):
 # ---------------------------------------------------------------- Tarix
 KINDS = {"topup": "To'ldirish", "withdraw": "Yechish", "buy_nft": "NFT xarid", "buy_stars": "Stars xarid",
          "buy_uc": "UC xarid", "convert": "Almashtirish", "refund": "Qaytarildi", "admin": "Admin o'zgartirdi",
-         "uc_order": "UC buyurtma", "ref": "Referal foyda", "bonus": "Bonus"}
+         "uc_order": "UC buyurtma", "ref": "Referal foyda", "bonus": "Bonus",
+         "topup_rejected": "To'ldirish bekor qilindi"}
 
 
 def fmt_tx(t) -> str:
     amt = fmt_ton(t.amount) if t.currency == "TON" else fmt(t.amount)
-    sign = "+" if Decimal(t.amount) > 0 else ""
+    sign = "✖ " if t.kind == "topup_rejected" else ("+" if Decimal(t.amount) > 0 else "")
     return f"{t.created_at:%d.%m %H:%M} · {KINDS.get(t.kind, t.kind)}: {sign}{amt} {t.currency}"
 
 
@@ -760,7 +759,7 @@ async def admin_decide(c: CallbackQuery):
         if act == "ok":
             r.status = "approved"
             if r.kind == "topup":  # komissiya ayriladi, qolgani balansga
-                await change_balance(s, u.id, r.currency, r.amount - r.fee, "topup", fee=r.fee, note=f"karta #{r.id}")
+                await change_balance(s, u.id, r.currency, r.amount - r.fee, "topup", fee=r.fee, note=f"{r.method} #{r.id}")
                 if r.method == "card":
                     ref_info = await pay_referral(s, u, Decimal(r.amount), ref_pct, "topup")
             msg = "✅ So'rovingiz tasdiqlandi."
@@ -768,6 +767,9 @@ async def admin_decide(c: CallbackQuery):
                 msg = "✅ UC buyurtmangiz bajarildi! PUBG hisobingizni tekshiring."
         else:
             r.status = "rejected"
+            if r.kind == "topup":  # balans o'zgarmaydi, lekin tarixda "bekor qilindi" deb ko'rinadi
+                s.add(Transaction(user_id=u.id, kind="topup_rejected", currency=r.currency,
+                                  amount=r.amount, note=f"{r.method} #{r.id}"))
             if r.kind == "withdraw":  # ushlab turilgan mablag' qaytariladi
                 await change_balance(s, u.id, r.currency, r.amount + r.fee, "refund", note=f"rad #{r.id}")
             if r.kind == "uc_order":
