@@ -14,17 +14,19 @@ from aiogram.exceptions import (TelegramBadRequest, TelegramForbiddenError,
 from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import (CallbackQuery, InlineKeyboardButton,
+from aiogram.types import (BufferedInputFile, CallbackQuery, InlineKeyboardButton,
                            InlineKeyboardMarkup, Message)
 from sqlalchemy import func, or_, select
 
 import config
 from admins import admin_ids, is_admin
-from bot import bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost, nft_card_text
+from bot import (bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost,
+                 nft_card_text, ton_cost)
 from db import (Application, Banner, Bonus, Nft, Request, Session, Transaction, User,
                 UserItem, change_balance, get_setting, get_str_setting,
                 set_setting)
 from features import app_text
+from nft_fetch import fetch_nft, parse_link
 
 log = logging.getLogger(__name__)
 
@@ -371,7 +373,8 @@ async def adm_nft(c: CallbackQuery, state: FSMContext):
     if not n:
         return await show(c, "NFT topilmadi.", back("adm:nfts"))
     jc = j_cost(n.price_uzs, await get_setting("j_uzs"))
-    await show(c, nft_card_text(n, jc), KB([
+    tc = ton_cost(n.price_uzs, await get_setting("ton_uzs"))
+    await show(c, nft_card_text(n, jc, tc=tc), KB([
         [B("✏️ So'm narxi", f"adm:nftp:{nid}:uzs"), B("✏️ Stars narxi", f"adm:nftp:{nid}:stars")],
         [B("📦 Nusxalar soni", f"adm:nftp:{nid}:stock")],
         [B("🖼 Rasm / animatsiya", f"adm:nftm:{nid}"), B("🔗 Havola", f"adm:nftl:{nid}")],
@@ -443,24 +446,89 @@ async def adm_nft_add(c: CallbackQuery, state: FSMContext):
     await c.answer()
     await state.clear()
     await state.set_state(A.nft_title)
-    await show(c, "🎁 <b>Yangi NFT</b>\n\n1/6 — NFT nomini yozing:", back("adm:nfts"))
+    await show(c, "🎁 <b>Yangi NFT</b>\n\n"
+                  "🔗 NFT <b>havolasini</b> yuboring (masalan <code>https://t.me/nft/PlushPepe-123</code>) — "
+                  "model, orqa fon, belgi va animatsiyani bot o'zi oladi.\n\n"
+                  "Yoki qo'lda kiritish uchun NFT <b>nomini</b> yozing:", back("adm:nfts"))
+
+
+PRICE_HELP = ("💰 <b>Narx</b>ni yuboring: <code>narx | stars | nusxa soni</code>\n"
+              "Narxni so'mda, TONda yoki J da berishingiz mumkin — qolganlari kursga qarab o'zi hisoblanadi:\n"
+              "• <code>500000</code> yoki <code>500000 som</code>\n"
+              "• <code>5 ton</code>\n"
+              "• <code>400 j</code>\n"
+              "Stars va nusxa soni ixtiyoriy (Stars yozilmasa 0, soni 1). Masalan: <code>5 ton | 0 | 1</code>")
+
+
+async def start_prices(m: Message, state: FSMContext, intro: str = ""):
+    await state.set_state(A.nft_prices)
+    await m.answer(intro + PRICE_HELP)
 
 
 @router.message(A.nft_title)
 async def adm_nft_title(m: Message, state: FSMContext):
     t = (m.text or "").strip()
     if not t or len(t) > 200:
-        return await m.answer("Nom 1–200 belgi bo'lsin.")
-    link = None
-    g = re.fullmatch(r"(?:https?://)?t\.me/nft/([A-Za-z0-9_]+)-(\d+)/?", t)
-    if g:      # NFT havolasi tashlansa — nom havoladan olinadi, havola tugma bo'ladi
-        t = f"{re.sub(r'(?<!^)(?=[A-Z])', ' ', g.group(1))} #{g.group(2)}"
-        link = f"https://t.me/nft/{g.group(1)}-{g.group(2)}"
-    await state.update_data(title=t, link=link)
+        return await m.answer("Havola yoki nom yuboring (1–200 belgi).")
+    g = parse_link(t)
+    if g:      # NFT havolasi: hamma ma'lumot (model, fon, belgi, animatsiya) avtomatik olinadi
+        wait = await m.answer("⏳ NFT ma'lumotlari olinmoqda...")
+        info = await fetch_nft(*g)
+        try:
+            await wait.delete()
+        except Exception:
+            pass
+        if not info:
+            await state.update_data(title=f"{re.sub(r'(?<!^)(?=[A-Z])', ' ', g[0])} #{g[1]}",
+                                    link=f"https://t.me/nft/{g[0]}-{g[1]}")
+            await state.set_state(A.nft_photo)
+            return await m.answer("⚠️ Havoladan ma'lumot olib bo'lmadi (NFT topilmadi yoki Telegram javob bermadi). "
+                                  "Qo'lda davom etamiz.\n\n2/6 — NFT rasmini yoki animatsiyasini yuboring: "
+                                  "<b>rasm</b>, <b>sticker</b> yoki <b>.tgs fayl</b> (yo'q bo'lsa <code>-</code> yozing):")
+        fid, kind = await upload_media(m, info)
+        await state.update_data(
+            title=info["title"], link=info["link"], photo=fid, media=kind or "photo",
+            model=info.get("model"), model_pct=info.get("model_pct"),
+            backdrop=info.get("backdrop"), backdrop_pct=info.get("backdrop_pct"),
+            symbol=info.get("symbol"), symbol_pct=info.get("symbol_pct"))
+        lines = [f"✅ <b>{html.escape(info['title'])}</b> topildi"]
+        for label, k in (("Model", "model"), ("Orqa fon", "backdrop"), ("Belgi", "symbol")):
+            if info.get(k):
+                lines.append(f"▫️ {label}: <b>{html.escape(info[k])}</b> {info.get(k + '_pct') or ''}")
+        lines.append("🎞 Animatsiya yuklandi" if kind in ("tgs", "tgsdoc") else
+                     "🖼 Rasm yuklandi" if fid else "⚠️ Rasm/animatsiya topilmadi (keyin «🖼 Rasm / animatsiya» orqali qo'shing)")
+        return await start_prices(m, state, "\n".join(lines) + "\n\n")
+    await state.update_data(title=t, link=None)
     await state.set_state(A.nft_photo)
-    await m.answer(f"{'🔗 Havola tanildi: <b>' + html.escape(t) + '</b>\n' if link else ''}"
-                   "2/6 — NFT rasmini yoki animatsiyasini yuboring: <b>rasm</b>, <b>sticker</b> yoki <b>.tgs fayl</b> "
+    await m.answer("2/6 — NFT rasmini yoki animatsiyasini yuboring: <b>rasm</b>, <b>sticker</b> yoki <b>.tgs fayl</b> "
                    "(yo'q bo'lsa <code>-</code> yozing):")
+
+
+async def upload_media(m: Message, info: dict):
+    """Olingan animatsiya/rasmni Telegramga yuklaydi (admin chatiga ko'rinish sifatida) va file_id + turini qaytaradi."""
+    name = info["link"].rsplit("/", 1)[-1]
+    attempts = []
+    if info.get("tgs"):
+        attempts += [("sticker", BufferedInputFile(info["tgs"], f"{name}.tgs")),
+                     ("document", BufferedInputFile(info["tgs"], f"{name}.tgs"))]
+    if info.get("webp"):
+        attempts.append(("sticker", BufferedInputFile(info["webp"], f"{name}.webp")))
+    if info.get("photo"):
+        attempts.append(("photo", BufferedInputFile(info["photo"], f"{name}.jpg")))
+    for how, f in attempts:
+        try:
+            if how == "sticker":
+                sent = await m.answer_sticker(f)
+            elif how == "document":
+                sent = await m.answer_document(f)
+            else:
+                sent = await m.answer_photo(f)
+            fid, kind = detect_media(sent)
+            if fid:
+                return fid, kind
+        except Exception:
+            log.exception("NFT mediasi yuklanmadi (%s)", how)
+    return None, None
 
 
 @router.message(A.nft_photo)
@@ -496,20 +564,39 @@ async def adm_nft_backdrop(m: Message, state: FSMContext):
 async def adm_nft_symbol(m: Message, state: FSMContext):
     name, pct = parse_trait(m.text)
     await state.update_data(symbol=name, symbol_pct=pct)
-    await state.set_state(A.nft_prices)
-    await m.answer("6/6 — Narxlar: <code>so'm | stars | nusxa soni</code>\n"
-                   "Masalan: <code>500000 | 2000 | 1</code>\n(Stars narxi yo'q bo'lsa 0; soni yozilmasa 1)")
+    await start_prices(m, state, "6/6 — ")
+
+
+PRICE_RE = re.compile(r"([\d\s]+(?:[.,]\d+)?)\s*(som|so'm|sum|uzs|ton|j)?", re.I)
+
+
+async def parse_prices(text: str):
+    """'5 ton | 0 | 1' -> (so'mdagi narx, stars narxi, nusxa soni). Narx so'm / ton / j da berilishi mumkin."""
+    parts = [x.strip() for x in (text or "").split("|")]
+    mm = PRICE_RE.fullmatch(parts[0].replace("🧧", "j"))
+    if not mm:
+        raise ValueError("narx")
+    val = Decimal(mm.group(1).replace(" ", "").replace(",", "."))
+    unit = (mm.group(2) or "som").lower()
+    if unit == "ton":
+        p_uzs = int(val * await get_setting("ton_uzs"))
+    elif unit == "j":
+        p_uzs = int(val * await get_setting("j_uzs"))
+    else:
+        p_uzs = int(val)
+    p_st = int(parts[1].replace(" ", "")) if len(parts) > 1 and parts[1] not in ("", "-") else 0
+    stock = int(parts[2].replace(" ", "")) if len(parts) > 2 and parts[2] else 1
+    if not (p_uzs >= 0 and p_st >= 0 and stock >= 1 and (p_uzs > 0 or p_st > 0)):
+        raise ValueError("qiymat")
+    return p_uzs, p_st, stock
 
 
 @router.message(A.nft_prices)
 async def adm_nft_prices(m: Message, state: FSMContext):
     try:
-        parts = [int(x.strip().replace(" ", "")) for x in (m.text or "").split("|")]
-        p_uzs, p_st = parts[0], parts[1]
-        stock = parts[2] if len(parts) > 2 else 1
-        assert p_uzs >= 0 and p_st >= 0 and stock >= 1 and (p_uzs > 0 or p_st > 0)
-    except Exception:
-        return await m.answer("Format xato. Misol: <code>500000 | 2000 | 1</code>")
+        p_uzs, p_st, stock = await parse_prices(m.text)
+    except (ValueError, InvalidOperation):
+        return await m.answer("Format xato. Misollar:\n<code>500000 | 2000 | 1</code>\n<code>5 ton</code>\n<code>400 j | 0 | 3</code>")
     await state.update_data(p_uzs=p_uzs, p_st=p_st, stock=stock)
     d = await state.get_data()
     if d.get("link"):
@@ -550,7 +637,8 @@ async def finish_nft(m: Message, state: FSMContext):
         await s.commit()
     await state.clear()
     jc = j_cost(d["p_uzs"], await get_setting("j_uzs"))
-    await m.answer("✅ NFT qo'shildi. Foydalanuvchilarga shunday ko'rinadi:\n\n" + nft_card_text(n, jc),
+    tc = ton_cost(d["p_uzs"], await get_setting("ton_uzs"))
+    await m.answer("✅ NFT qo'shildi. Foydalanuvchilarga shunday ko'rinadi:\n\n" + nft_card_text(n, jc, tc=tc),
                    reply_markup=back("adm:nfts"))
 
 

@@ -139,6 +139,13 @@ def j_cost(price_uzs: int, rate: Decimal) -> int:
     return int((Decimal(price_uzs) / rate).to_integral_value(rounding=ROUND_CEILING))
 
 
+def ton_cost(price_uzs: int, rate: Decimal) -> Decimal:
+    """NFT narxi TON da (so'm narxi / TON kursi, 0.01 gacha yuqoriga yaxlitlanadi)."""
+    if rate <= 0 or price_uzs <= 0:
+        return Decimal(0)
+    return max(Decimal("0.01"), (Decimal(price_uzs) / rate).quantize(Decimal("0.01"), rounding=ROUND_CEILING))
+
+
 def detect_media(m: Message):
     """Xabardan NFT mediasini aniqlaydi: rasm, sticker (.tgs/webm) yoki fayl. -> (file_id, tur) yoki (None, None)."""
     if m.photo:
@@ -175,7 +182,7 @@ async def answer_card(message: Message, file_id: str | None, media: str | None, 
     return await message.answer(caption, reply_markup=kb)
 
 
-def nft_card_text(n: Nft, jc: int | None = None, price: bool = True) -> str:
+def nft_card_text(n: Nft, jc: int | None = None, price: bool = True, tc: Decimal | None = None) -> str:
     """Fragment uslubidagi NFT kartochkasi: Model / Orqa fon / Belgi va ularning foizlari."""
     lines = [f"🎁 <b>{html.escape(n.title)}</b>", ""]
     for label, name, pct in (("Model", n.model, n.model_pct),
@@ -193,6 +200,8 @@ def nft_card_text(n: Nft, jc: int | None = None, price: bool = True) -> str:
             parts.append(f"{fmt(n.price_uzs)} so'm")
         if jc:
             parts.append(f"{fmt(jc)} J🧧")
+        if tc:
+            parts.append(f"{fmt_ton(tc)} TON")
         if n.price_stars > 0:
             parts.append(f"{n.price_stars} ⭐")
         lines.append("💰 " + "  |  ".join(parts))
@@ -365,18 +374,21 @@ async def nft_view(c: CallbackQuery):
     if not n or not n.active or n.stock <= 0:
         return await c.answer("Bu NFT sotilgan yoki mavjud emas", show_alert=True)
     jc = j_cost(n.price_uzs, await get_setting("j_uzs"))
+    tc = ton_cost(n.price_uzs, await get_setting("ton_uzs"))
     rows = []
     if n.price_uzs > 0:
         rows.append([InlineKeyboardButton(text=f"{fmt(n.price_uzs)} so'm bilan", callback_data=f"nft:b:uzs:{nid}")])
     if jc > 0:
         rows.append([InlineKeyboardButton(text=f"{fmt(jc)} J🧧 bilan", callback_data=f"nft:b:j:{nid}")])
+    if tc > 0:
+        rows.append([InlineKeyboardButton(text=f"{fmt_ton(tc)} TON bilan", callback_data=f"nft:b:ton:{nid}")])
     if n.price_stars > 0:
         rows.append([InlineKeyboardButton(text=f"{n.price_stars} ⭐ bilan", callback_data=f"nft:b:stars:{nid}")])
     if n.link and n.link.startswith("https://"):
         rows.append([InlineKeyboardButton(text="🔗 NFT ni ko'rish", url=n.link)])
     rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="nft:list")])
     kb = InlineKeyboardMarkup(inline_keyboard=rows)
-    cap = nft_card_text(n, jc)
+    cap = nft_card_text(n, jc, tc=tc)
     if n.photo_file_id:
         try:
             await c.message.delete()
@@ -393,10 +405,11 @@ async def nft_buy(c: CallbackQuery):
     if not u:
         return
     _, _, cur, nid = c.data.split(":")
-    if cur not in ("uzs", "stars", "j"):
+    if cur not in ("uzs", "stars", "j", "ton"):
         return await c.answer()
     stars_rate = await get_setting("stars_uzs")
     j_rate = await get_setting("j_uzs")
+    ton_rate = await get_setting("ton_uzs")
     ref_pct = await get_setting("ref_nft_pct")
     ref_info = None
     async with Session() as s:
@@ -409,18 +422,22 @@ async def nft_buy(c: CallbackQuery):
         elif cur == "stars":
             price = n.price_stars
             base = Decimal(price) * stars_rate
+        elif cur == "ton":
+            price = ton_cost(n.price_uzs, ton_rate)
+            base = price * ton_rate
         else:
             price = j_cost(n.price_uzs, j_rate)
             base = Decimal(price) * j_rate
         if price <= 0:
             return await c.answer("Bu usulda sotib olib bo'lmaydi", show_alert=True)
+        price_txt = fmt_ton(price) if cur == "ton" else fmt(price)
         if not await change_balance(s, u.id, cur.upper(), Decimal(-price), "buy_nft", note=n.title):
             return await c.answer("Balansda mablag' yetarli emas ❌", show_alert=True)
         n.stock -= 1
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{fmt(price)} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{price_txt} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await c.answer("✅ Sotib olindi!", show_alert=True)
@@ -432,7 +449,7 @@ async def nft_buy(c: CallbackQuery):
         try:
             await bot.send_message(a, f"🎁 NFT sotildi: <b>{html.escape(n.title)}</b>\n"
                                       f"Xaridor: {u.tg_id} @{u.username or '-'} {u.phone}\n"
-                                      f"To'lov: {fmt(price)} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
+                                      f"To'lov: {price_txt} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
         except Exception:
             pass
     if ref_info:
