@@ -19,6 +19,7 @@ from aiogram.types import (BufferedInputFile, InlineKeyboardButton,
                            InlineKeyboardMarkup, LabeledPrice)
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 import httpx
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -35,6 +36,9 @@ from uc import uc_kb  # noqa: E402
 
 app = FastAPI()
 INDEX = Path(__file__).resolve().parent / "index.html"
+STATIC = Path(__file__).resolve().parent / "static"      # logotiplar va rasmlar (J, Stars, Humo/Uzcard, PUBG...)
+if STATIC.is_dir():
+    app.mount("/static", StaticFiles(directory=STATIC), name="static")
 UC_PACKS = [60, 120, 180, 240, 325]
 CURS = ("UZS", "J", "STARS", "TON")
 
@@ -368,7 +372,7 @@ async def items(x_init_data: str = Header(...)):
         rows = (await s.execute(select(UserItem).where(UserItem.user_id == u.id)
                                 .order_by(UserItem.id.desc()).limit(50))).scalars().all()
     return [{"id": it.id, "title": it.title, "nft_id": it.nft_id, "photo": bool(it.photo_file_id),
-             "lines": strip_tags(it.card_text)[1:], "paid": it.paid, "date": f"{it.created_at:%d.%m.%Y}"}
+             "kind": media_kind(it.media), "lines": strip_tags(it.card_text)[1:], "paid": it.paid, "date": f"{it.created_at:%d.%m.%Y}"}
             for it in rows]
 
 
