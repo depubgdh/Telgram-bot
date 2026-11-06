@@ -2,6 +2,7 @@
 Faqat admin (ADMIN_USERNAMES / ADMIN_IDS) foydalana oladi. /admin yoki asosiy menyudagi "👑 Admin panel"."""
 import asyncio
 import html
+import re
 import json
 import logging
 from datetime import datetime, timedelta
@@ -19,7 +20,7 @@ from sqlalchemy import func, or_, select
 
 import config
 from admins import admin_ids, is_admin
-from bot import bot, dp, fmt, fmt_ton, fmt_tx, header, j_cost, nft_card_text
+from bot import bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost, nft_card_text
 from db import (Application, Banner, Bonus, Nft, Request, Session, Transaction, User,
                 UserItem, change_balance, get_setting, get_str_setting,
                 set_setting)
@@ -79,6 +80,9 @@ class A(StatesGroup):
     nft_backdrop = State()
     nft_symbol = State()
     nft_prices = State()
+    nft_link = State()
+    nft_media = State()
+    nft_linkedit = State()
     bn_amount = State()
     bn_user = State()
     bn_text = State()
@@ -370,6 +374,7 @@ async def adm_nft(c: CallbackQuery, state: FSMContext):
     await show(c, nft_card_text(n, jc), KB([
         [B("✏️ So'm narxi", f"adm:nftp:{nid}:uzs"), B("✏️ Stars narxi", f"adm:nftp:{nid}:stars")],
         [B("📦 Nusxalar soni", f"adm:nftp:{nid}:stock")],
+        [B("🖼 Rasm / animatsiya", f"adm:nftm:{nid}"), B("🔗 Havola", f"adm:nftl:{nid}")],
         [B("🗑 O'chirish", f"adm:nftdel:{nid}")],
         [B("⬅️ Orqaga", "adm:nfts")]]))
 
@@ -446,19 +451,27 @@ async def adm_nft_title(m: Message, state: FSMContext):
     t = (m.text or "").strip()
     if not t or len(t) > 200:
         return await m.answer("Nom 1–200 belgi bo'lsin.")
-    await state.update_data(title=t)
+    link = None
+    g = re.fullmatch(r"(?:https?://)?t\.me/nft/([A-Za-z0-9_]+)-(\d+)/?", t)
+    if g:      # NFT havolasi tashlansa — nom havoladan olinadi, havola tugma bo'ladi
+        t = f"{re.sub(r'(?<!^)(?=[A-Z])', ' ', g.group(1))} #{g.group(2)}"
+        link = f"https://t.me/nft/{g.group(1)}-{g.group(2)}"
+    await state.update_data(title=t, link=link)
     await state.set_state(A.nft_photo)
-    await m.answer("2/6 — NFT rasmini yuboring (rasm yo'q bo'lsa <code>-</code> yozing):")
+    await m.answer(f"{'🔗 Havola tanildi: <b>' + html.escape(t) + '</b>\n' if link else ''}"
+                   "2/6 — NFT rasmini yoki animatsiyasini yuboring: <b>rasm</b>, <b>sticker</b> yoki <b>.tgs fayl</b> "
+                   "(yo'q bo'lsa <code>-</code> yozing):")
 
 
 @router.message(A.nft_photo)
 async def adm_nft_photo(m: Message, state: FSMContext):
-    if m.photo:
-        await state.update_data(photo=m.photo[-1].file_id)
+    fid, kind = detect_media(m)
+    if fid:
+        await state.update_data(photo=fid, media=kind)
     elif (m.text or "").strip() == "-":
-        await state.update_data(photo=None)
+        await state.update_data(photo=None, media="photo")
     else:
-        return await m.answer("Rasm yuboring yoki <code>-</code> yozing.")
+        return await m.answer("Rasm, sticker yoki .tgs fayl yuboring (yoki <code>-</code> yozing).")
     await state.set_state(A.nft_model)
     await m.answer("3/6 — <b>Model</b> nomi va foizi. Masalan: <code>Gold Star 1.5</code>\n(foiz ixtiyoriy; yo'q bo'lsa <code>-</code>)")
 
@@ -497,17 +510,92 @@ async def adm_nft_prices(m: Message, state: FSMContext):
         assert p_uzs >= 0 and p_st >= 0 and stock >= 1 and (p_uzs > 0 or p_st > 0)
     except Exception:
         return await m.answer("Format xato. Misol: <code>500000 | 2000 | 1</code>")
+    await state.update_data(p_uzs=p_uzs, p_st=p_st, stock=stock)
     d = await state.get_data()
-    n = Nft(title=d["title"], photo_file_id=d.get("photo"), price_uzs=p_uzs, price_stars=p_st, stock=stock,
+    if d.get("link"):
+        return await finish_nft(m, state)
+    await state.set_state(A.nft_link)
+    await m.answer("7/7 — NFT <b>havolasi</b> (masalan <code>https://t.me/nft/PlushPepe-123</code>). Kartochkada «🔗 NFT ni ko'rish» tugmasi bo'ladi.\n"
+                   "Kerak bo'lmasa <code>-</code> yozing.")
+
+
+def clean_link(t: str) -> str | None:
+    t = (t or "").strip()
+    if t in ("", "-"):
+        return None
+    if t.startswith("@"):
+        t = "https://t.me/" + t[1:]
+    elif t.startswith("t.me/"):
+        t = "https://" + t
+    return t[:300] if t.startswith("https://") else ""
+
+
+@router.message(A.nft_link)
+async def adm_nft_link(m: Message, state: FSMContext):
+    link = clean_link(m.text)
+    if link == "":
+        return await m.answer("Havola <code>https://</code> bilan boshlansin (yoki <code>-</code> yozing).")
+    await state.update_data(link=link)
+    await finish_nft(m, state)
+
+
+async def finish_nft(m: Message, state: FSMContext):
+    d = await state.get_data()
+    n = Nft(title=d["title"], photo_file_id=d.get("photo"), media=d.get("media") or "photo", link=d.get("link"),
+            price_uzs=d["p_uzs"], price_stars=d["p_st"], stock=d["stock"],
             model=d.get("model"), model_pct=d.get("model_pct"), backdrop=d.get("backdrop"),
             backdrop_pct=d.get("backdrop_pct"), symbol=d.get("symbol"), symbol_pct=d.get("symbol_pct"))
     async with Session() as s:
         s.add(n)
         await s.commit()
     await state.clear()
-    jc = j_cost(p_uzs, await get_setting("j_uzs"))
+    jc = j_cost(d["p_uzs"], await get_setting("j_uzs"))
     await m.answer("✅ NFT qo'shildi. Foydalanuvchilarga shunday ko'rinadi:\n\n" + nft_card_text(n, jc),
                    reply_markup=back("adm:nfts"))
+
+
+@router.callback_query(F.data.startswith("adm:nftm:"))
+async def adm_nft_media_start(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    await state.set_state(A.nft_media)
+    await state.update_data(nid=int(c.data.split(":")[2]))
+    await show(c, "🖼 Yangi <b>rasm</b>, <b>sticker</b> yoki <b>.tgs fayl</b> yuboring:", back("adm:nfts"))
+
+
+@router.message(A.nft_media)
+async def adm_nft_media_apply(m: Message, state: FSMContext):
+    fid, kind = detect_media(m)
+    if not fid:
+        return await m.answer("Rasm, sticker yoki .tgs fayl yuboring.")
+    nid = (await state.get_data())["nid"]
+    async with Session() as s:
+        n = await s.get(Nft, nid)
+        n.photo_file_id, n.media = fid, kind
+        await s.commit()
+    await state.clear()
+    await m.answer("✅ Yangilandi. Mini App'da 1 soat ichida (yoki qayta deploydan keyin) yangi ko'rinadi.", reply_markup=back("adm:nfts"))
+
+
+@router.callback_query(F.data.startswith("adm:nftl:"))
+async def adm_nft_link_start(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    await state.set_state(A.nft_linkedit)
+    await state.update_data(nid=int(c.data.split(":")[2]))
+    await show(c, "🔗 Yangi havolani yuboring (<code>https://...</code>). O'chirish uchun <code>-</code>:", back("adm:nfts"))
+
+
+@router.message(A.nft_linkedit)
+async def adm_nft_link_apply(m: Message, state: FSMContext):
+    link = clean_link(m.text)
+    if link == "":
+        return await m.answer("Havola <code>https://</code> bilan boshlansin (yoki <code>-</code>).")
+    nid = (await state.get_data())["nid"]
+    async with Session() as s:
+        n = await s.get(Nft, nid)
+        n.link = link
+        await s.commit()
+    await state.clear()
+    await m.answer("✅ Havola saqlandi." if link else "✅ Havola o'chirildi.", reply_markup=back("adm:nfts"))
 
 
 # ------------------------------------------------------------ Majburiy kanal

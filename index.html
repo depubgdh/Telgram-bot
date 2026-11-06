@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mini App</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 <style>
 :root{
   --bg:#070B1A; --card:rgba(19,26,52,.72); --ink:#EAF0FF; --mute:#93A0C4; --line:rgba(140,160,255,.14);
@@ -85,7 +86,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .nft{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
-.nft .ph{aspect-ratio:1;background:var(--field) center/cover no-repeat;display:grid;place-items:center;font-size:42px}
+.nft .ph{aspect-ratio:1;background:#0A0F25 center/contain no-repeat;display:grid;place-items:center;font-size:42px}
 .nft .in{padding:10px}
 .nft h3{margin:0 0 4px;font-size:15px}
 .attr{font-size:12px;color:var(--mute);line-height:1.5}
@@ -93,7 +94,8 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .nft .btn{margin:0;padding:10px;font-size:14px}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end}
 .sheet{background:#101733;width:100%;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
-.sheet .ph{width:100%;aspect-ratio:16/10;border-radius:12px;background:var(--field) center/cover no-repeat;margin-bottom:10px}
+.sheet .ph{width:100%;aspect-ratio:1;max-height:48vh;border-radius:14px;background:#0A0F25 center/contain no-repeat;margin-bottom:10px;overflow:hidden;display:grid;place-items:center;font-size:60px}
+.ph svg,.ph video{width:100%;height:100%;object-fit:contain;display:block}
 .pay{display:grid;gap:8px;margin-top:12px}
 .pay button{display:flex;justify-content:space-between;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
 .pay button:disabled{opacity:.45}
@@ -221,6 +223,7 @@ function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === S.tab));
   const view = { home: vHome, nft: vNft, wallet: vWallet, items: vItems }[S.tab]();
   app.innerHTML = hero() + view;
+  initLottie(app);
   bind();
 }
 
@@ -272,6 +275,18 @@ function vHome() {
     <h2>So'nggi amallar</h2><div class="card hist">${hist}</div>`;
 }
 
+function mbox(n) {
+  if (!n.photo) return `<div class="ph">🎁</div>`;
+  if (n.kind === "lottie") return `<div class="ph" data-lot="/media/${n.id}"></div>`;
+  if (n.kind === "video") return `<div class="ph"><video src="/media/${n.id}" autoplay loop muted playsinline></video></div>`;
+  return `<div class="ph" style="background-image:url('/media/${n.id}')"></div>`;
+}
+function initLottie(root) {
+  root.querySelectorAll("[data-lot]").forEach(el => {
+    if (el.dataset.done || !window.lottie) return; el.dataset.done = 1;
+    try { lottie.loadAnimation({ container: el, renderer: "svg", loop: true, autoplay: true, path: el.dataset.lot }); } catch (e) {}
+  });
+}
 function attrs(n) {
   return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
     .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(a[2]) + "%" : ""}`).join("<br>");
@@ -279,7 +294,7 @@ function attrs(n) {
 function vNft() {
   if (!S.nfts.length) return `<div class="empty">Hozir sotuvda NFT yo'q. Tez orada yangilari qo'shiladi.</div>`;
   return `<h2>Sotuvdagi NFT</h2><div class="grid">` + S.nfts.map(n => `
-    <div class="nft"><div class="ph" ${n.photo ? `style="background-image:url('/photo/${n.id}')"` : ""}>${n.photo ? "" : "🎁"}</div>
+    <div class="nft">${mbox(n)}
     <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="price num">${fmt(n.price_uzs)} so'm</div>
     <button class="btn alt" data-buy="${n.id}">Sotib olish</button></div></div>`).join("") + `</div>`;
@@ -379,14 +394,16 @@ function openBuy(id) {
   const n = S.nfts.find(x => x.id === id); if (!n) return;
   const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
   const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
-  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}"><div class="ph" ${n.photo ? `style="background-image:url('/photo/${n.id}')"` : ""}></div>
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n)}
     <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="pay">${opts.map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
-    <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
+    ${n.link ? `<button class="btn alt" id="lk">🔗 NFT ni ko'rish</button>` : ""}<button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
   document.body.appendChild(bg);
+  initLottie(bg);
   const close = () => bg.remove();
   bg.onclick = e => { if (e.target === bg) close(); };
   $("#x", bg).onclick = close;
+  const lk = $("#lk", bg); if (lk) lk.onclick = () => { try { if (tg && /^https:\/\/t\.me\//.test(n.link) && tg.openTelegramLink) tg.openTelegramLink(n.link); else if (tg && tg.openLink) tg.openLink(n.link); else window.open(n.link, "_blank"); } catch (e) { window.open(n.link, "_blank"); } };
   bg.querySelectorAll("[data-c]").forEach(btn => btn.onclick = async () => {
     bg.querySelectorAll("button").forEach(x => x.disabled = true);
     try { const r = await api("/api/nft/buy", { method: "POST", body: { nft_id: id, cur: btn.dataset.c } }); close(); toast(r.msg); S.tab = "items"; await refresh(true); }

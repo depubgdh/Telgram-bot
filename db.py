@@ -57,6 +57,8 @@ class Nft(Base):
     symbol: Mapped[str | None] = mapped_column(String(100), nullable=True)
     symbol_pct: Mapped[str | None] = mapped_column(String(16), nullable=True)
     stock: Mapped[int] = mapped_column(BigInteger, default=1)                  # nechta nusxa qoldi
+    media: Mapped[str] = mapped_column(String(10), default="photo")           # photo | tgs | webm | webp | tgsdoc | webmdoc | photodoc
+    link: Mapped[str | None] = mapped_column(String(300), nullable=True)       # NFT havolasi (ixtiyoriy tugma)
 
 
 class Transaction(Base):
@@ -110,6 +112,7 @@ class UserItem(Base):
     title: Mapped[str] = mapped_column(String(200))
     card_text: Mapped[str] = mapped_column(Text, default="")
     photo_file_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    media: Mapped[str] = mapped_column(String(10), default="photo")
     paid: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -178,6 +181,9 @@ _MIGRATIONS = [
     ("nfts", "symbol", "VARCHAR(100)", "VARCHAR(100)"),
     ("nfts", "symbol_pct", "VARCHAR(16)", "VARCHAR(16)"),
     ("nfts", "stock", "BIGINT NOT NULL DEFAULT 1", "BIGINT NOT NULL DEFAULT 1"),
+    ("nfts", "media", "VARCHAR(10) NOT NULL DEFAULT 'photo'", "VARCHAR(10) NOT NULL DEFAULT 'photo'"),
+    ("nfts", "link", "VARCHAR(300)", "VARCHAR(300)"),
+    ("user_items", "media", "VARCHAR(10) NOT NULL DEFAULT 'photo'", "VARCHAR(10) NOT NULL DEFAULT 'photo'"),
 ]
 
 

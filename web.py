@@ -204,14 +204,20 @@ async def history(x_init_data: str = Header(...)):
 
 
 # ------------------------------------------------------------------ NFT
-_photo_cache: dict[int, bytes] = {}
+_photo_cache: dict[int, tuple[bytes, str]] = {}
 
 
+def media_kind(media: str | None) -> str:
+    media = media or "photo"
+    return "lottie" if media in ("tgs", "tgsdoc") else "video" if media in ("webm", "webmdoc") else "image"
+
+
+@app.get("/media/{nft_id}")
 @app.get("/photo/{nft_id}")
-async def photo(nft_id: int):
-    """NFT rasmi: Telegram'dan olinib (token yashirin holda) uzatiladi."""
-    data = _photo_cache.get(nft_id)
-    if data is None:
+async def nft_media(nft_id: int):
+    """NFT rasmi / animatsiyasi: Telegram'dan olinadi. .tgs bo'lsa Lottie JSON'ga ochib beriladi."""
+    hit = _photo_cache.get(nft_id)
+    if hit is None:
         async with Session() as s:
             n = await s.get(Nft, nft_id)
         if not n or not n.photo_file_id:
@@ -223,10 +229,25 @@ async def photo(nft_id: int):
             data = buf.getvalue()
         except Exception:
             raise HTTPException(404, "Rasm topilmadi")
-        if len(_photo_cache) > 200:
+        kind = media_kind(n.media)
+        if kind == "lottie":
+            try:
+                data = gzip.decompress(data)
+            except Exception:
+                pass
+            ctype = "application/json"
+        elif kind == "video":
+            ctype = "video/webm"
+        elif data[:8] == b"\x89PNG\r\n\x1a\n":
+            ctype = "image/png"
+        elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            ctype = "image/webp"
+        else:
+            ctype = "image/jpeg"
+        if len(_photo_cache) > 100:
             _photo_cache.clear()
-        _photo_cache[nft_id] = data
-    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+        hit = _photo_cache[nft_id] = (data, ctype)
+    return Response(hit[0], media_type=hit[1], headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/api/nfts")
@@ -235,7 +256,7 @@ async def nfts(x_init_data: str = Header(...)):
     jr = await get_setting("j_uzs")
     async with Session() as s:
         items = (await s.execute(select(Nft).where(Nft.active, Nft.stock > 0).order_by(Nft.id))).scalars().all()
-    return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id),
+    return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id), "kind": media_kind(n.media), "link": n.link or "",
              "model": n.model, "model_pct": n.model_pct, "backdrop": n.backdrop, "backdrop_pct": n.backdrop_pct,
              "symbol": n.symbol, "symbol_pct": n.symbol_pct, "price_uzs": int(n.price_uzs),
              "price_j": j_cost(n.price_uzs, jr), "price_stars": int(n.price_stars), "stock": int(n.stock)}
@@ -275,7 +296,7 @@ async def nft_buy(body: BuyIn, x_init_data: str = Header(...)):
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, paid=f"{fmt(price)} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{fmt(price)} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await tell_admins(f"🎁 NFT sotildi (Mini App): <b>{html.escape(n.title)}</b>\n"

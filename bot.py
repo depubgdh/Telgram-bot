@@ -139,6 +139,42 @@ def j_cost(price_uzs: int, rate: Decimal) -> int:
     return int((Decimal(price_uzs) / rate).to_integral_value(rounding=ROUND_CEILING))
 
 
+def detect_media(m: Message):
+    """Xabardan NFT mediasini aniqlaydi: rasm, sticker (.tgs/webm) yoki fayl. -> (file_id, tur) yoki (None, None)."""
+    if m.photo:
+        return m.photo[-1].file_id, "photo"
+    st = m.sticker
+    if st:
+        return st.file_id, "tgs" if st.is_animated else ("webm" if st.is_video else "webp")
+    d = m.document
+    if d:
+        name, mime = (d.file_name or "").lower(), d.mime_type or ""
+        if name.endswith(".tgs") or mime == "application/x-tgsticker":
+            return d.file_id, "tgsdoc"
+        if name.endswith(".webm") or mime == "video/webm":
+            return d.file_id, "webmdoc"
+        if mime.startswith("image/"):
+            return d.file_id, "photodoc"
+    return None, None
+
+
+async def answer_card(message: Message, file_id: str | None, media: str | None, caption: str, kb=None):
+    """NFT kartochkasini media turiga qarab yuboradi (rasm / animatsion sticker / fayl)."""
+    media = media or "photo"
+    try:
+        if file_id and media == "photo":
+            return await message.answer_photo(file_id, caption=caption, reply_markup=kb)
+        if file_id and media in ("tgs", "webm", "webp"):
+            await message.answer_sticker(file_id)
+        elif file_id and media == "photodoc":
+            return await message.answer_document(file_id, caption=caption, reply_markup=kb)
+        elif file_id:
+            caption += "\n\n🎞 Animatsiyani Mini App'da ko'ring."
+    except Exception:
+        log.exception("media yuborilmadi")
+    return await message.answer(caption, reply_markup=kb)
+
+
 def nft_card_text(n: Nft, jc: int | None = None, price: bool = True) -> str:
     """Fragment uslubidagi NFT kartochkasi: Model / Orqa fon / Belgi va ularning foizlari."""
     lines = [f"🎁 <b>{html.escape(n.title)}</b>", ""]
@@ -336,6 +372,8 @@ async def nft_view(c: CallbackQuery):
         rows.append([InlineKeyboardButton(text=f"{fmt(jc)} J🧧 bilan", callback_data=f"nft:b:j:{nid}")])
     if n.price_stars > 0:
         rows.append([InlineKeyboardButton(text=f"{n.price_stars} ⭐ bilan", callback_data=f"nft:b:stars:{nid}")])
+    if n.link and n.link.startswith("https://"):
+        rows.append([InlineKeyboardButton(text="🔗 NFT ni ko'rish", url=n.link)])
     rows.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="nft:list")])
     kb = InlineKeyboardMarkup(inline_keyboard=rows)
     cap = nft_card_text(n, jc)
@@ -344,7 +382,7 @@ async def nft_view(c: CallbackQuery):
             await c.message.delete()
         except Exception:
             pass
-        await c.message.answer_photo(n.photo_file_id, caption=cap, reply_markup=kb)
+        await answer_card(c.message, n.photo_file_id, n.media, cap, kb)
     else:
         await edit_or_send(c, cap, kb)
 
@@ -382,7 +420,7 @@ async def nft_buy(c: CallbackQuery):
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, paid=f"{fmt(price)} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{fmt(price)} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await c.answer("✅ Sotib olindi!", show_alert=True)

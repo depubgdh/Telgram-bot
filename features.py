@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from admins import admin_ids
-from bot import (back_kb, bot, dp, edit_or_send, fmt, fmt_ton, guard,
+from bot import (answer_card, back_kb, bot, dp, edit_or_send, fmt, fmt_ton, guard,
                  rate_uzs, show_main)
 from db import (Application, Bonus, BonusClaim, Request, Session, Transaction,
                 User, UserItem, change_balance, get_setting, get_str_setting,
@@ -129,7 +129,7 @@ async def item_view(c: CallbackQuery):
             await c.message.delete()
         except Exception:
             pass
-        await c.message.answer_photo(it.photo_file_id, caption=cap, reply_markup=kb)
+        await answer_card(c.message, it.photo_file_id, it.media, cap, kb)
     else:
         await edit_or_send(c, cap, kb)
 
