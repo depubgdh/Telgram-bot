@@ -78,6 +78,12 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);bo
 .btn.alt{background:#3552E0;color:#fff}
 .btn:disabled{opacity:.55}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.fchips{display:flex;gap:8px;overflow-x:auto;margin:0 -16px 10px;padding:0 16px 2px;scrollbar-width:none}
+.fchips::-webkit-scrollbar{display:none}
+.fchips .chip{flex:none;white-space:nowrap}
+.fsel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.fsel select,#fsort{padding:10px 8px;font-size:13px}
+#fsort{margin-bottom:8px}
 .chip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 12px;border-radius:999px;font-size:14px}
 .chip[aria-pressed="true"]{background:#3552E0;color:#fff;border-color:#3552E0}
 .copy{display:flex;gap:8px;align-items:center;background:var(--field);border:1px dashed var(--mute);border-radius:11px;padding:11px 12px;margin-top:8px;word-break:break-all}
@@ -231,7 +237,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 
 const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
-            wd: "card", tp: "card", pend: null, tonAmt: "", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0 };
+            wd: "card", tp: "card", pend: null, tonAmt: "", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0,
+            f: { sort: "price_asc", coll: "", model: "", backdrop: "", symbol: "" } };
 const CUR = {UZS: "So'm", J: "J", STARS: "Stars", TON: "TON"};
 const LOGO = "/static/j.jpg";
 const ICO = { j: "/static/j.jpg", stars: "/static/stars.svg", ton: "/static/ton.svg", uc: "/static/pubg.jpg" };
@@ -401,15 +408,37 @@ function attrs(n) {
   return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
     .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(String(a[2]).replace(/%+$/, "")) + "%" : ""}`).join("<br>");
 }
+function nftView() {
+  const f = S.f;
+  const cmp = { price_asc: (a, b) => a.price_uzs - b.price_uzs, price_desc: (a, b) => b.price_uzs - a.price_uzs,
+                name: (a, b) => a.title.localeCompare(b.title, "uz", { numeric: true }) }[f.sort] || ((a, b) => a.price_uzs - b.price_uzs);
+  return S.nfts.filter(n => (!f.coll || n.coll === f.coll) && (!f.model || n.model === f.model)
+    && (!f.backdrop || n.backdrop === f.backdrop) && (!f.symbol || n.symbol === f.symbol)).sort(cmp);
+}
+function nftFilters() {
+  const f = S.f, uniq = k => [...new Set(S.nfts.map(n => n[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+  const cnt = {}; S.nfts.forEach(n => { if (n.coll) cnt[n.coll] = (cnt[n.coll] || 0) + 1; });
+  const colls = Object.keys(cnt).sort((a, b) => a.localeCompare(b));
+  const sel = (key, label) => { const o = uniq(key); return o.length ? `<select data-f="${key}" aria-label="${label}"><option value="">${label}</option>${o.map(v => `<option value="${esc(v)}"${f[key] === v ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""; };
+  const active = f.coll || f.model || f.backdrop || f.symbol;
+  return `<div class="fchips"><button type="button" class="chip" data-fc="" aria-pressed="${!f.coll}">Hammasi</button>${colls.map(c => `<button type="button" class="chip" data-fc="${esc(c)}" aria-pressed="${f.coll === c}">${esc(c)} (${cnt[c]})</button>`).join("")}</div>
+    <select id="fsort" data-f="sort" aria-label="Saralash"><option value="price_asc"${f.sort === "price_asc" ? " selected" : ""}>Narx: arzonlari birinchi</option>
+      <option value="price_desc"${f.sort === "price_desc" ? " selected" : ""}>Narx: qimmatlari birinchi</option>
+      <option value="name"${f.sort === "name" ? " selected" : ""}>Nomi bo'yicha (A–Z)</option></select>
+    <div class="fsel">${sel("model", "Model")}${sel("backdrop", "Orqa fon")}${sel("symbol", "Belgi")}</div>
+    ${active ? `<button type="button" class="btn alt" data-freset style="margin:0 0 10px">✕ Filtrni tozalash</button>` : ""}`;
+}
 function vNft() {
   if (!S.nfts.length) return `<div class="empty">Hozir sotuvda NFT yo'q. Tez orada yangilari qo'shiladi.</div>`;
-  return `<h2>Sotuvdagi NFT</h2><div class="grid">` + S.nfts.map(n => `
+  const list = nftView();
+  return `<h2>Sotuvdagi NFT</h2>${nftFilters()}` + (list.length ? `<div class="grid">` + list.map(n => `
     <div class="nft">${mbox(n)}
     <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="price num">${fmt(n.price_uzs)} so'm</div>
     <div class="attr num" style="margin:-4px 0 8px">${fmt(n.price_j)} J · ${n.price_ton} TON</div>
     <button class="btn alt" data-buy="${n.id}">Sotib olish</button>
-    ${S.me.is_admin && n.link ? `<button type="button" class="btn" data-view="${esc(n.link)}" style="margin-top:6px;background:var(--field);color:var(--ink)">🔗 Sovg'ani ko'rish</button>` : ""}</div></div>`).join("") + `</div>`;
+    ${S.me.is_admin && n.link ? `<button type="button" class="btn" data-view="${esc(n.link)}" style="margin-top:6px;background:var(--field);color:var(--ink)">🔗 Sovg'ani ko'rish</button>` : ""}</div></div>`).join("") + `</div>`
+    : `<div class="empty">Bu filtr bo'yicha NFT topilmadi.</div>`);
 }
 function vItems() {
   const head = `<div class="grp"><div class="mrow">${sq("gift", "#C084FC", "#8B3DE8")}<span class="t">Inventar</span><span class="v num">${S.items.length}</span></div>
@@ -626,6 +655,9 @@ function bind() {
   app.querySelectorAll("[data-hist]").forEach(b => b.onclick = openHist);
   app.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { S.uc = +b.dataset.uc; app.querySelectorAll("[data-uc]").forEach(x => x.setAttribute("aria-pressed", +x.dataset.uc === S.uc)); });
   app.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => openBuy(+b.dataset.buy));
+  app.querySelectorAll("[data-fc]").forEach(b => b.onclick = () => { S.f.coll = b.dataset.fc; render(); });
+  app.querySelectorAll("[data-f]").forEach(el => el.onchange = () => { S.f[el.dataset.f] = el.value; render(); });
+  app.querySelectorAll("[data-freset]").forEach(b => b.onclick = () => { S.f = { ...S.f, coll: "", model: "", backdrop: "", symbol: "" }; render(); });
   app.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
   app.querySelectorAll("[data-share]").forEach(b => b.onclick = () => { const u = b.dataset.share; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } });
   const run = (id, fn) => {

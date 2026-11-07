@@ -6,7 +6,7 @@ import re
 import json
 import logging
 from datetime import datetime, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_UP, Decimal, InvalidOperation
 
 from aiogram import F, Router
 from aiogram.exceptions import (TelegramBadRequest, TelegramForbiddenError,
@@ -293,6 +293,7 @@ async def adm_ban(c: CallbackQuery):
 LABELS = {
     "stars_uzs": "1 Star = so'm",
     "ton_uzs": "1 TON = so'm",
+    "markup_pct": "NFT ustama foizi %",
     "uc_uzs": "1 UC = so'm",
     "topup_card_fee": "Karta to'ldirish komissiyasi %",
     "withdraw_card_fee": "Kartaga yechish %",
@@ -358,8 +359,10 @@ async def adm_nfts(c: CallbackQuery, state: FSMContext):
     await c.answer()
     async with Session() as s:
         items = (await s.execute(select(Nft).where(Nft.active).order_by(Nft.id))).scalars().all()
-    rows = [[B(f"{n.title} — {fmt(n.price_uzs)} so'm / {n.price_stars}⭐", f"adm:nft:{n.id}")] for n in items]
+    ic = {"top": "🔥 ", "sale": "💸 "}
+    rows = [[B(f"{ic.get(n.badge or '', '')}{n.title} — {fmt(n.price_uzs)} so'm / {n.price_stars}⭐", f"adm:nft:{n.id}")] for n in items]
     rows.append([B("➕ NFT qo'shish", "adm:nftadd")])
+    rows.append([B("🏷 Top / Skidka belgilash", "adm:badges")])
     rows.append([B("⬅️ Panel", "adm:main")])
     await show(c, "🎁 <b>NFT boshqaruvi</b>" + ("" if items else "\nHozircha NFT yo'q."), KB(rows))
 
@@ -416,6 +419,19 @@ async def adm_nft_price_apply(m: Message, state: FSMContext):
         await s.commit()
     await state.clear()
     await m.answer("✅ Yangilandi.", reply_markup=back("adm:nfts"))
+
+
+@router.callback_query(F.data == "adm:badges")
+async def adm_badges(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    async with Session() as s:
+        items = (await s.execute(select(Nft).where(Nft.active).order_by(Nft.id))).scalars().all()
+    ic = {"top": "🔥 TOP", "sale": "💸 SKIDKA"}
+    rows = [[B(f"{ic.get(n.badge or '', '▫️')}  {n.title}", f"adm:nftb:{n.id}")] for n in items]
+    rows.append([B("⬅️ NFT boshqaruvi", "adm:nfts")])
+    await show(c, "🏷 <b>Top / Skidka</b>\nMini App bosh sahifasida (reklama tagida) ko'rinadigan NFT'larni tanlang. "
+                  "NFT'ni bosib, belgisini qo'ying:" + ("" if items else "\nHozircha NFT yo'q."), KB(rows))
 
 
 @router.callback_query(F.data.startswith("adm:nftb:"))
@@ -505,6 +521,7 @@ PRICE_HELP = ("💰 <b>Narx</b>ni yuboring: <code>narx | stars | nusxa soni</cod
               "• <code>500000</code> yoki <code>500000 som</code>\n"
               "• <code>5 ton</code>\n"
               "• <code>400 j</code>\n"
+              "• <code>5 ton +</code> — oxiriga «+» qo'ysangiz, narxga <b>ustama foiz</b> qo'shiladi (Kurs va komissiyalar → NFT ustama foizi)\n"
               "Stars va nusxa soni ixtiyoriy (Stars yozilmasa 0, soni 1). Masalan: <code>5 ton | 0 | 1</code>")
 
 
@@ -621,7 +638,11 @@ PRICE_RE = re.compile(r"([\d\s]+(?:[.,]\d+)?)\s*(som|so'm|sum|uzs|ton|j)?", re.I
 async def parse_prices(text: str):
     """'5 ton | 0 | 1' -> (so'mdagi narx, stars narxi, nusxa soni). Narx so'm / ton / j da berilishi mumkin."""
     parts = [x.strip() for x in (text or "").split("|")]
-    mm = PRICE_RE.fullmatch(parts[0].replace("🧧", "j"))
+    raw = parts[0].replace("🧧", "j").strip()
+    plus = raw.endswith("+")
+    if plus:
+        raw = raw[:-1].strip()
+    mm = PRICE_RE.fullmatch(raw)
     if not mm:
         raise ValueError("narx")
     val = Decimal(mm.group(1).replace(" ", "").replace(",", "."))
@@ -632,6 +653,9 @@ async def parse_prices(text: str):
         p_uzs = int(val * await get_setting("j_uzs"))
     else:
         p_uzs = int(val)
+    if plus:   # ustama foiz qo'shiladi va 100 so'mga yuqoriga yaxlitlanadi
+        pct = await get_setting("markup_pct")
+        p_uzs = int((Decimal(p_uzs) * (100 + pct) / 100 / 100).to_integral_value(ROUND_UP)) * 100
     p_st = int(parts[1].replace(" ", "")) if len(parts) > 1 and parts[1] not in ("", "-") else 0
     stock = int(parts[2].replace(" ", "")) if len(parts) > 2 and parts[2] else 1
     if not (p_uzs >= 0 and p_st >= 0 and stock >= 1 and (p_uzs > 0 or p_st > 0)):
@@ -644,7 +668,7 @@ async def adm_nft_prices(m: Message, state: FSMContext):
     try:
         p_uzs, p_st, stock = await parse_prices(m.text)
     except (ValueError, InvalidOperation):
-        return await m.answer("Format xato. Misollar:\n<code>500000 | 2000 | 1</code>\n<code>5 ton</code>\n<code>400 j | 0 | 3</code>")
+        return await m.answer("Format xato. Misollar:\n<code>500000 | 2000 | 1</code>\n<code>5 ton</code>\n<code>5 ton +</code> (ustama bilan)\n<code>400 j | 0 | 3</code>")
     await state.update_data(p_uzs=p_uzs, p_st=p_st, stock=stock)
     d = await state.get_data()
     if d.get("link"):

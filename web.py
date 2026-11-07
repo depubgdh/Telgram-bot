@@ -304,6 +304,14 @@ _anim_cache: dict[int, bytes] = {}
 _anim_miss: set[int] = set()
 
 
+def coll_name(n) -> str:
+    """Kolleksiya nomi (saralash uchun): havoladan (BDayCandle-205973 -> BDayCandle), bo'lmasa sarlavhadan."""
+    g = parse_link(n.link or "")
+    if g:
+        return g[0]
+    return re.sub(r"[^A-Za-z0-9]+", "", re.sub(r"\s*#\d+\s*$", "", n.title or "")) or (n.title or "")
+
+
 def has_anim(n_media: str | None, link: str | None) -> bool:
     """Mini App'da (sotib olish / buyum oynasida) animatsiya o'ynatish mumkinmi."""
     kind = media_kind(n_media)
@@ -355,7 +363,7 @@ async def nfts(x_init_data: str = Header(...)):
     async with Session() as s:
         items = (await s.execute(select(Nft).where(Nft.active, Nft.stock > 0).order_by(Nft.id))).scalars().all()
     return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id), "kind": media_kind(n.media), "link": (n.link or "") if adm else "",   # silka faqat adminga
-             "anim": has_anim(n.media, n.link),
+             "anim": has_anim(n.media, n.link), "coll": coll_name(n),
              "model": n.model, "model_pct": n.model_pct, "backdrop": n.backdrop, "backdrop_pct": n.backdrop_pct,
              "symbol": n.symbol, "symbol_pct": n.symbol_pct, "price_uzs": int(n.price_uzs),
              "price_j": j_cost(n.price_uzs, jr), "price_ton": float(ton_cost(n.price_uzs, tr)), "price_stars": int(n.price_stars), "stock": int(n.stock),
