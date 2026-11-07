@@ -11,6 +11,7 @@ from web import app
 import admin  # noqa: F401  (admin panel handlerlarini ro'yxatdan o'tkazadi)
 import features  # noqa: F401  (foydalanuvchi bo'limlari)
 import uc  # noqa: F401  (UC vaucher ombori)
+import gifts  # noqa: F401  (sovg'ani chiqarib olish)
 
 
 async def main():

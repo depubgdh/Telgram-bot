@@ -435,7 +435,7 @@ async def nft_buy(c: CallbackQuery):
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{price_txt} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", link=n.link, paid=f"{price_txt} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await c.answer("✅ Sotib olindi!", show_alert=True)
@@ -447,7 +447,9 @@ async def nft_buy(c: CallbackQuery):
         try:
             await bot.send_message(a, f"🎁 NFT sotildi: <b>{html.escape(n.title)}</b>\n"
                                       f"Xaridor: {u.tg_id} @{u.username or '-'} {u.phone}\n"
-                                      f"To'lov: {price_txt} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
+                                      f"To'lov: {price_txt} {cur.upper()}\n"
+                                      f"🔗 Sovg'a silkasi: {html.escape(n.link) if n.link else '—'}\n"
+                                      "Xaridor «Chiqarib olish» ni bossa, qayerga yuborish so'rovi alohida keladi.")
         except Exception:
             pass
     if ref_info:

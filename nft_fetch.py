@@ -6,14 +6,14 @@ import re
 
 log = logging.getLogger(__name__)
 
-LINK_RE = re.compile(r"(?:https?://)?t\.me/nft/([A-Za-z0-9_]+)-(\d+)/?(?:\?.*)?$", re.I)
+LINK_RE = re.compile(r"(?:https?://)?(?:www\.)?t\.me/nft/([A-Za-z0-9_]+)-(\d+)", re.I)
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; NftBot/1.0)", "Accept-Language": "en"}
 _LABELS = {"model": "model", "backdrop": "backdrop", "symbol": "symbol"}
 
 
 def parse_link(text: str):
     """'t.me/nft/PlushPepe-123' -> ('PlushPepe', '123') yoki None."""
-    m = LINK_RE.match((text or "").strip())
+    m = LINK_RE.search(text or "")      # matn ichida qayerda bo'lsa ham topadi: "[ t.me/nft/MythMask-85237 ]" ham bo'ladi
     return (m.group(1), m.group(2)) if m else None
 
 

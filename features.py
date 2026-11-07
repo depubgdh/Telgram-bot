@@ -123,7 +123,15 @@ async def item_view(c: CallbackQuery):
     if not it or it.user_id != u.id:
         return await c.answer("Topilmadi", show_alert=True)
     cap = f"{it.card_text}\n\n🧾 To'langan: {esc(it.paid)}\n📅 {it.created_at:%d.%m.%Y %H:%M}"
-    kb = KB([[B("⬅️ Orqaga", "m:items")]])
+    rows = []
+    if it.gift_status == "owned":
+        rows.append([B("📤 Chiqarib olish", f"gf:start:{it.id}")])
+    elif it.gift_status == "requested":
+        cap += f"\n\n⏳ Chiqarib olish so'rovi yuborilgan: @{esc(it.gift_to)} (admin yuborishini kuting)"
+    else:
+        cap += f"\n\n✅ Sovg'a @{esc(it.gift_to)} akkauntiga yuborilgan"
+    rows.append([B("⬅️ Orqaga", "m:items")])
+    kb = KB(rows)
     if it.photo_file_id:
         try:
             await c.message.delete()

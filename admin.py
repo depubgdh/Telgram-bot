@@ -85,6 +85,7 @@ class A(StatesGroup):
     nft_link = State()
     nft_media = State()
     nft_linkedit = State()
+    nft_old = State()
     bn_amount = State()
     bn_user = State()
     bn_text = State()
@@ -374,9 +375,12 @@ async def adm_nft(c: CallbackQuery, state: FSMContext):
         return await show(c, "NFT topilmadi.", back("adm:nfts"))
     jc = j_cost(n.price_uzs, await get_setting("j_uzs"))
     tc = ton_cost(n.price_uzs, await get_setting("ton_uzs"))
-    await show(c, nft_card_text(n, jc, tc=tc), KB([
+    badge = {"top": "🔥 TOP", "sale": "💸 SKIDKA"}.get(n.badge or "")
+    extra = f"\n\n🏷 Mini App belgisi: <b>{badge}</b>" + (f" (eski narx {fmt(n.old_price_uzs)} so'm)" if n.badge == "sale" and n.old_price_uzs else "") if badge else ""
+    await show(c, nft_card_text(n, jc, tc=tc) + extra, KB([
         [B("✏️ So'm narxi", f"adm:nftp:{nid}:uzs"), B("✏️ Stars narxi", f"adm:nftp:{nid}:stars")],
         [B("📦 Nusxalar soni", f"adm:nftp:{nid}:stock")],
+        [B("🏷 Top / Skidka belgisi", f"adm:nftb:{nid}")],
         [B("🖼 Rasm / animatsiya", f"adm:nftm:{nid}"), B("🔗 Havola", f"adm:nftl:{nid}")],
         [B("🗑 O'chirish", f"adm:nftdel:{nid}")],
         [B("⬅️ Orqaga", "adm:nfts")]]))
@@ -412,6 +416,50 @@ async def adm_nft_price_apply(m: Message, state: FSMContext):
         await s.commit()
     await state.clear()
     await m.answer("✅ Yangilandi.", reply_markup=back("adm:nfts"))
+
+
+@router.callback_query(F.data.startswith("adm:nftb:"))
+async def adm_nft_badge(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    nid = int(c.data.split(":")[2])
+    await show(c, "🏷 Bu NFT Mini App bosh sahifasida (reklama tagida) qaysi bo'limda ko'rinsin?",
+               KB([[B("🔥 Top", f"adm:nftbs:{nid}:top"), B("💸 Skidka", f"adm:nftbs:{nid}:sale")],
+                   [B("🚫 Belgini olib tashlash", f"adm:nftbs:{nid}:none")],
+                   [B("⬅️ Orqaga", f"adm:nft:{nid}")]]))
+
+
+@router.callback_query(F.data.startswith("adm:nftbs:"))
+async def adm_nft_badge_set(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    _, _, nid, kind = c.data.split(":")
+    nid = int(nid)
+    if kind == "sale":
+        await state.set_state(A.nft_old)
+        await state.update_data(nid=nid)
+        return await show(c, "💸 <b>Eski narxni</b> so'mda yuboring (chizib ko'rsatiladi, chegirma foizi o'zi hisoblanadi).\n"
+                             "Eski narx kerak bo'lmasa <code>0</code> yuboring:", back(f"adm:nft:{nid}"))
+    async with Session() as s:
+        n = await s.get(Nft, nid)
+        n.badge, n.old_price_uzs = ("top" if kind == "top" else ""), 0
+        await s.commit()
+    await show(c, "✅ Saqlandi." if kind == "top" else "✅ Belgi olib tashlandi.", back(f"adm:nft:{nid}"))
+
+
+@router.message(A.nft_old)
+async def adm_nft_old(m: Message, state: FSMContext):
+    try:
+        v = int((m.text or "").replace(" ", ""))
+        assert v >= 0
+    except (ValueError, AssertionError):
+        return await m.answer("Butun musbat son kiriting (yoki 0).")
+    nid = (await state.get_data())["nid"]
+    async with Session() as s:
+        n = await s.get(Nft, nid)
+        n.badge, n.old_price_uzs = "sale", v
+        await s.commit()
+    await state.clear()
+    await m.answer("✅ Saqlandi: NFT «Skidka» bo'limida ko'rinadi.", reply_markup=back(f"adm:nft:{nid}"))
 
 
 @router.callback_query(F.data.startswith("adm:nftdel:"))
@@ -610,6 +658,9 @@ def clean_link(t: str) -> str | None:
     t = (t or "").strip()
     if t in ("", "-"):
         return None
+    g = parse_link(t)
+    if g:      # NFT silkasi: har qanday ko'rinishda (t.me/nft/Nom-123, [ ... ], https://...) bir xil saqlanadi
+        return f"https://t.me/nft/{g[0]}-{g[1]}"
     if t.startswith("@"):
         t = "https://t.me/" + t[1:]
     elif t.startswith("t.me/"):

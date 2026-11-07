@@ -59,6 +59,8 @@ class Nft(Base):
     stock: Mapped[int] = mapped_column(BigInteger, default=1)                  # nechta nusxa qoldi
     media: Mapped[str] = mapped_column(String(10), default="photo")           # photo | tgs | webm | webp | tgsdoc | webmdoc | photodoc
     link: Mapped[str | None] = mapped_column(String(300), nullable=True)       # NFT havolasi (ixtiyoriy tugma)
+    badge: Mapped[str] = mapped_column(String(8), default="")                   # "" | "top" | "sale" — Mini App bosh sahifasida ko'rinadi
+    old_price_uzs: Mapped[int] = mapped_column(BigInteger, default=0)          # "skidka" uchun eski narx (so'm), 0 = ko'rsatilmaydi
 
 
 class Transaction(Base):
@@ -114,6 +116,10 @@ class UserItem(Base):
     photo_file_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
     media: Mapped[str] = mapped_column(String(10), default="photo")
     paid: Mapped[str] = mapped_column(String(64), default="")
+    link: Mapped[str | None] = mapped_column(String(300), nullable=True)       # sovg'a (NFT) silkasi — adminga yuboriladi
+    gift_status: Mapped[str] = mapped_column(String(12), default="owned")      # owned | requested | sent
+    gift_to: Mapped[str | None] = mapped_column(String(64), nullable=True)     # qabul qiluvchi username
+    gift_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
@@ -183,6 +189,12 @@ _MIGRATIONS = [
     ("nfts", "stock", "BIGINT NOT NULL DEFAULT 1", "BIGINT NOT NULL DEFAULT 1"),
     ("nfts", "media", "VARCHAR(10) NOT NULL DEFAULT 'photo'", "VARCHAR(10) NOT NULL DEFAULT 'photo'"),
     ("nfts", "link", "VARCHAR(300)", "VARCHAR(300)"),
+    ("nfts", "badge", "VARCHAR(8) NOT NULL DEFAULT ''", "VARCHAR(8) NOT NULL DEFAULT ''"),
+    ("nfts", "old_price_uzs", "BIGINT NOT NULL DEFAULT 0", "BIGINT NOT NULL DEFAULT 0"),
+    ("user_items", "link", "VARCHAR(300)", "VARCHAR(300)"),
+    ("user_items", "gift_status", "VARCHAR(12) NOT NULL DEFAULT 'owned'", "VARCHAR(12) NOT NULL DEFAULT 'owned'"),
+    ("user_items", "gift_to", "VARCHAR(64)", "VARCHAR(64)"),
+    ("user_items", "gift_at", "TIMESTAMP", "DATETIME"),
     ("user_items", "media", "VARCHAR(10) NOT NULL DEFAULT 'photo'", "VARCHAR(10) NOT NULL DEFAULT 'photo'"),
 ]
 
