@@ -20,7 +20,7 @@ from sqlalchemy import func, or_, select
 
 import config
 from admins import admin_ids, is_admin
-from bot import (bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost,
+from bot import (DEFAULT_WELCOME, bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost,
                  nft_card_text, ton_cost)
 from db import (Application, Banner, Bonus, Nft, Request, Session, Transaction, User,
                 UserItem, change_balance, get_setting, get_str_setting,
@@ -69,6 +69,8 @@ async def show(c: CallbackQuery, text: str, markup: InlineKeyboardMarkup):
 
 
 class A(StatesGroup):
+    welcome_text = State()
+    welcome_media = State()
     find_user = State()
     balance = State()
     setting = State()
@@ -103,6 +105,7 @@ PANEL = KB([
     [B("🎉 Bonus yuborish", "adm:bonus"), B("📣 Reklama tarqatish", "adm:ad")],
     [B("📢 Majburiy kanal", "adm:channel"), B("📈 Statistika", "adm:stats")],
     [B("🖼 Mini App reklamasi", "adm:mb"), B("🎟 UC vaucherlar", "adm:uc")],
+    [B("🏠 Bosh menyu matni va rasmi", "adm:welcome")],
     [B("⬅️ Asosiy menyu", "m:main")],
 ])
 
@@ -111,6 +114,109 @@ PANEL = KB([
 async def cmd_admin(m: Message, state: FSMContext):
     await state.clear()
     await m.answer("👑 <b>Admin panel</b>", reply_markup=PANEL)
+
+
+# ------------------------------------------------------------ Bosh menyu: salom matni va rasm/video
+MEDIA_NAMES = {"photo": "🖼 rasm", "video": "🎬 video", "animation": "🎞 GIF"}
+
+
+async def welcome_view():
+    tpl = await get_str_setting("welcome_text", DEFAULT_WELCOME)
+    mid = await get_str_setting("welcome_media_id")
+    mt = await get_str_setting("welcome_media_type", "photo")
+    text = ("🏠 <b>Bosh menyu</b>\n\n📝 Hozirgi salom matni:\n──────────\n" + tpl + "\n──────────\n\n"
+            f"🖼 Media: {MEDIA_NAMES.get(mt, 'rasm') if mid else 'yo`q'}\n\n"
+            "O'zgaruvchilar: <code>{username}</code> — @username (bo'lmasa ismi), <code>{name}</code> — ismi.\n"
+            "Matn <b>qalin</b>, <i>kursiv</i> bo'lishi mumkin (Telegram formatlash bilan yuboring).")
+    return text, KB([[B("✏️ Matnni o'zgartirish", "adm:wtext")],
+                     [B("🖼 Rasm / video yuklash", "adm:wmedia"), B("🗑 Mediani o'chirish", "adm:wmdel")],
+                     [B("♻️ Standart matn", "adm:wreset"), B("👁 Ko'rish", "adm:wprev")],
+                     [B("⬅️ Panel", "adm:main")]])
+
+
+@router.callback_query(F.data == "adm:welcome")
+async def adm_welcome(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    text, kb = await welcome_view()
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data == "adm:wtext")
+async def adm_wtext(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    await state.set_state(A.welcome_text)
+    await show(c, "✏️ Yangi <b>salom matnini</b> yuboring (eng ko'pi 700 belgi).\n"
+                  "Foydalanuvchi nomi o'rniga <code>{username}</code>, ismi o'rniga <code>{name}</code> yozing.\n\n"
+                  "Masalan:\n<code>Hurmatli {username}! Siz NFT sovg'alar bozoriga tashrif buyurdingiz.</code>", back("adm:welcome"))
+
+
+@router.message(A.welcome_text)
+async def adm_wtext_apply(m: Message, state: FSMContext):
+    txt = (m.html_text or "").strip()
+    if not txt or len(txt) > 700:
+        return await m.answer("Matn bo'sh yoki juda uzun (eng ko'pi 700 belgi). Qayta yuboring.")
+    try:   # HTML to'g'ri ekanini tekshiramiz (Telegram qabul qilmasa saqlamaymiz)
+        await m.answer(txt.replace("{username}", "@namuna").replace("{name}", "Ism"))
+    except TelegramBadRequest:
+        return await m.answer("❌ Formatlashda xato. Matnni qayta yuboring.")
+    await set_setting("welcome_text", txt)
+    await state.clear()
+    text, kb = await welcome_view()
+    await m.answer("✅ Saqlandi.\n\n" + text, reply_markup=kb)
+
+
+@router.callback_query(F.data == "adm:wmedia")
+async def adm_wmedia(c: CallbackQuery, state: FSMContext):
+    await c.answer()
+    await state.set_state(A.welcome_media)
+    await show(c, "🖼 Bosh menyuda ko'rinadigan <b>rasm</b>, <b>video</b> yoki <b>GIF</b> yuboring:", back("adm:welcome"))
+
+
+@router.message(A.welcome_media, F.photo | F.video | F.animation)
+async def adm_wmedia_apply(m: Message, state: FSMContext):
+    if m.photo:
+        kind, fid = "photo", m.photo[-1].file_id
+    elif m.animation:
+        kind, fid = "animation", m.animation.file_id
+    else:
+        kind, fid = "video", m.video.file_id
+    await set_setting("welcome_media_id", fid)
+    await set_setting("welcome_media_type", kind)
+    await state.clear()
+    text, kb = await welcome_view()
+    await m.answer("✅ Saqlandi.\n\n" + text, reply_markup=kb)
+
+
+@router.message(A.welcome_media)
+async def adm_wmedia_bad(m: Message):
+    await m.answer("Rasm, video yoki GIF yuboring (fayl emas, oddiy rasm/video sifatida).")
+
+
+@router.callback_query(F.data == "adm:wmdel")
+async def adm_wmdel(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await set_setting("welcome_media_id", "")
+    await c.answer("Media o'chirildi")
+    text, kb = await welcome_view()
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data == "adm:wreset")
+async def adm_wreset(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await set_setting("welcome_text", DEFAULT_WELCOME)
+    await c.answer("Standart matn qaytarildi")
+    text, kb = await welcome_view()
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data == "adm:wprev")
+async def adm_wprev(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    from bot import show_main
+    await show_main(c, c.from_user.id)
 
 
 @router.callback_query(F.data == "adm:main")

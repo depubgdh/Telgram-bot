@@ -103,23 +103,38 @@ async def on_join_request(req: ChatJoinRequest):
 
 
 # ---------------------------------------------------------------- menyu
-def main_kb(adm: bool = False, can_sell: bool = False) -> InlineKeyboardMarkup:
-    def b(t: str, d: str) -> InlineKeyboardButton:
-        return InlineKeyboardButton(text=t, callback_data=d)
+def sbtn(text: str, data: str | None = None, style: str | None = None, **kw) -> InlineKeyboardButton:
+    """Tugma. style: "primary" (ko'k), "success" (yashil), "danger" (qizil) — Telegram'ning rangli tugmalari.
+    Eski mijozlarda rang ko'rinmaydi, lekin tugma baribir ishlaydi."""
+    args = dict(kw)
+    if data:
+        args["callback_data"] = data
+    if style:
+        args["style"] = style
+    return InlineKeyboardButton(text=text, **args)
 
+
+DEFAULT_WELCOME = ("Hurmatli <b>{username}</b>! 👋\n\n"
+                   "Siz <b>NFT sovg'alar bozori</b>ga tashrif buyurdingiz. "
+                   "Bu yerda NFT sovg'alarni <b>so'mda ham</b> sotib olishingiz mumkin! 🎁")
+
+
+def main_kb(adm: bool = False, can_sell: bool = False) -> InlineKeyboardMarkup:
+    if config.WEBAPP_URL:   # «Mening buyumlarim» Mini App'ning Buyumlar bo'limini to'g'ridan-to'g'ri ochadi
+        sep = "&" if "?" in config.WEBAPP_URL else "?"
+        items_btn = sbtn("📦 Mening buyumlarim", style="success", web_app=WebAppInfo(url=f"{config.WEBAPP_URL}{sep}tab=items"))
+    else:
+        items_btn = sbtn("📦 Mening buyumlarim", "m:items", "success")
     rows = [
-        [b("🎁 NFT / Sovg'alar", "nft:list")],
-        [b("🛒 Sotib olish", "m:buy"), b("📦 Mening buyumlarim", "m:items")],
-        [b("🔄 Almashtirish", "m:convert"), b("💳 Hisobni to'ldirish", "m:topup")],
-        [b("💸 Yechib olish", "m:withdraw"), b("🎮 PUBG UC xaridi", "m:uc")],
-        [b("✔️ Shartnoma tuzish 📝", "m:contract")],
-        [b("👥 Do'stlarim", "m:friends"), b("📜 Tarix", "m:history")],
-        [b("💼 Mening hisoblarim", "m:accounts")],
+        [sbtn("💳 Hisobni to'ldirish", "m:topup", "primary"), sbtn("💸 Yechib olish", "m:withdraw", "primary")],
+        [items_btn, sbtn("📜 Tarix", "m:history")],
+        [sbtn("✔️ Shartnoma tuzish 📝", "m:contract", "danger")],
+        [sbtn("💼 Mening hisoblarim", "m:accounts", "primary")],
     ]
     if can_sell:
-        rows.append([b("🏷️ NFT Sotish", "sell:menu")])
+        rows.append([sbtn("🏷️ NFT Sotish", "sell:menu")])
     if adm:
-        rows.append([b("👑 Admin panel", "adm:main")])
+        rows.append([sbtn("👑 Admin panel", "adm:main")])
     if config.WEBAPP_URL:
         rows.append([InlineKeyboardButton(text="📱 Mini App", web_app=WebAppInfo(url=config.WEBAPP_URL))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -229,6 +244,7 @@ async def edit_or_send(c: CallbackQuery, text: str, markup: InlineKeyboardMarkup
 async def show_main(target: Message | CallbackQuery, tg_id: int):
     u = await get_user(tg_id)
     adm = await check_admin(u.tg_id, u.username)
+    media_id, media_type = None, "photo"
     if u.frozen:
         text = ("🧊 <b>Hisobingiz muzlatilgan</b>\n\n⭐️ Stars: 0\nJ🧧: 0\n🇺🇿 So'm: 0\n\n"
                 "Ochish uchun parolni kiriting.")
@@ -238,10 +254,29 @@ async def show_main(target: Message | CallbackQuery, tg_id: int):
             rows.append([InlineKeyboardButton(text="👑 Admin panel", callback_data="adm:main")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
     else:
-        text = f"{await header(u)}\n\nAsosiy menyu:"
+        tgu = target.from_user
+        first = (tgu.first_name if tgu and not tgu.is_bot else "") or "do'stim"
+        who = f"@{u.username}" if u.username else first
+        tpl = await get_str_setting("welcome_text", DEFAULT_WELCOME)
+        greet = tpl.replace("{username}", html.escape(who)).replace("{name}", html.escape(first))
+        text = f"{greet}\n\n{await header(u)}"
         kb = main_kb(adm, u.can_sell)
+        media_id = await get_str_setting("welcome_media_id")
+        media_type = await get_str_setting("welcome_media_type", "photo")
     msg = target.message if isinstance(target, CallbackQuery) else target
-    if isinstance(target, CallbackQuery):
+    if media_id:   # admin bergan rasm / video / GIF bilan
+        if isinstance(target, CallbackQuery):
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+        send = {"video": msg.answer_video, "animation": msg.answer_animation}.get(media_type, msg.answer_photo)
+        try:
+            await send(media_id, caption=text, reply_markup=kb)
+            return
+        except Exception as e:
+            log.warning("Bosh menyu medias yuborilmadi: %s", e)
+    elif isinstance(target, CallbackQuery):
         try:
             await msg.edit_text(text, reply_markup=kb)
             return

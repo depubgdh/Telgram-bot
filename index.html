@@ -292,6 +292,7 @@ const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
             wd: "card", tp: "card", pend: null, tonAmt: "", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0,
             f: { sort: "price_asc", q: "", coll: "", model: "", backdrop: "", symbol: "" } };
+try { const t = new URLSearchParams(location.search).get("tab"); if (["home", "nft", "wallet", "items", "friends"].includes(t)) S.tab = t; } catch (e) {}   // botdagi «Mening buyumlarim» shu yerga olib keladi
 const CUR = {UZS: "So'm", J: "J", STARS: "Stars", TON: "TON"};
 const LOGO = "/static/j.jpg";
 const ICO = { j: "/static/j.jpg", stars: "/static/stars.svg", ton: "/static/ton.svg", uc: "/static/pubg.jpg" };

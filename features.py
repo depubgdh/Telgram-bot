@@ -92,7 +92,7 @@ async def m_accounts(c: CallbackQuery):
             f"🪙 TON: {fmt_ton(u.ton)}\n"
             f"🎮 UC: {fmt(u.uc)}\n\n"
             f"Kurs: 1 J🧧 = {fmt(jr)} so'm")
-    await edit_or_send(c, text, back_kb())
+    await edit_or_send(c, text, KB([[B("👥 Do'stlarim", "m:friends")], [B("⬅️ Orqaga", "m:main")]]))
 
 
 # =============================================================== Mening buyumlarim
@@ -356,7 +356,7 @@ async def m_friends(c: CallbackQuery):
         text += "\n\nℹ️ Referal foyda olish uchun: Shartnoma tuzish → Pul ishlash bo'limida ariza bering."
     share = f"https://t.me/share/url?url={quote(link)}&text={quote('Mana shu botga qo`shiling!')}"
     await edit_or_send(c, text, KB([[InlineKeyboardButton(text="📤 Ulashish", url=share)],
-                                    [B("⬅️ Orqaga", "m:main")]]))
+                                    [B("⬅️ Orqaga", "m:accounts")]]))
 
 
 # =============================================================== Shartnoma tuzish

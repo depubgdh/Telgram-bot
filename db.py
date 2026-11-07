@@ -95,7 +95,7 @@ class Request(Base):
 class Setting(Base):
     __tablename__ = "settings"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
-    value: Mapped[str] = mapped_column(String(255))
+    value: Mapped[str] = mapped_column(Text)   # uzun matn (bosh menyu salomi) uchun
 
 
 class JoinRequest(Base):
@@ -208,6 +208,12 @@ async def migrate():
                 await conn.execute(text(ddl))
         except Exception as e:  # ustun allaqachon bor (sqlite) — normal holat
             logging.getLogger(__name__).debug("migrate skip %s.%s: %s", table, col, e)
+    if pg:   # eski bazada settings.value VARCHAR(255) edi: uzun matn sig'ishi uchun TEXT ga o'tkaziladi (takror ishlatish zararsiz)
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE settings ALTER COLUMN value TYPE TEXT"))
+        except Exception as e:
+            logging.getLogger(__name__).warning("settings.value TEXT ga o'tmadi: %s", e)
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_referrer ON users (referrer_id)"))
