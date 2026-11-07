@@ -25,7 +25,7 @@ h2{font-size:18px;margin:22px 0 10px;font-weight:700}
 button{font:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
-.hero{margin:14px 0 12px;background:url(/static/hero.svg) center/cover no-repeat,#2A1470;color:#F2F5FF;box-shadow:0 12px 34px rgba(60,60,220,.32);border-radius:22px;padding:20px 18px 16px;position:relative;overflow:hidden}
+.hero{margin:14px 0 12px;background:radial-gradient(120% 150% at 100% 0%,rgba(80,110,255,.26),transparent 60%),linear-gradient(160deg,rgba(15,23,64,.92),rgba(8,11,32,.96));color:#F2F5FF;border:1px solid var(--glass-line);box-shadow:0 12px 34px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.07);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:22px;padding:20px 18px 16px;position:relative;overflow:hidden}
 .hero small{opacity:.75;font-size:13px}
 .hero .big{font-size:36px;font-weight:800;letter-spacing:-.5px;margin:2px 0 14px}
 .hero .big span{font-size:16px;font-weight:600;opacity:.8;margin-left:6px}
@@ -44,17 +44,18 @@ button{font:inherit;cursor:pointer}
 .empty{text-align:center;color:var(--mute);padding:26px 10px}
 
 nav{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:5;
-  display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:6px;border-radius:32px;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:6px;border-radius:32px;
   background:var(--glass);border:1px solid var(--glass-line);box-shadow:0 10px 32px rgba(0,0,0,.22);
   -webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
 nav[hidden]{display:none}
-nav button{background:none;border:0;color:var(--mute);padding:8px 2px 7px;border-radius:26px;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .2s,color .2s}
-nav svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav button{background:none;border:0;color:var(--mute);padding:8px 1px 7px;border-radius:26px;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .2s,color .2s}
+nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-selected="true"]{color:var(--tab-on);background:var(--tab-bg);font-weight:700}
 
 /* tepa qator: Telegram tugmalari orasidagi balans chiplari */
 #top{position:sticky;top:0;z-index:6;margin:0 -16px;padding-top:var(--st,0px);padding-left:calc(16px + var(--sl,0px));padding-right:calc(16px + var(--sr,0px))}
 #top[hidden]{display:none}
+#top{background:linear-gradient(180deg,rgba(7,11,26,.94),rgba(7,11,26,.72) 70%,rgba(7,11,26,0))}
 #top .in{height:var(--sh,52px);display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent)}
 #top .in::-webkit-scrollbar{display:none}
 .tchip{flex:none;display:flex;align-items:center;gap:6px;padding:4px 4px 4px 9px;border-radius:999px;color:var(--ink);font-weight:700;font-size:14px;
@@ -176,6 +177,21 @@ button.mrow:active{background:rgba(255,255,255,.05)}
 .wait{text-align:center;padding:26px 14px}
 .ring{width:58px;height:58px;margin:0 auto 14px;border-radius:50%;border:5px solid rgba(127,162,255,.25);border-top-color:#7FA2FF;animation:spin 1s linear infinite}
 .cancelled{color:var(--mute)}
+.shelf{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px 12px;padding:0 16px 4px;scrollbar-width:none}
+.shelf::-webkit-scrollbar{display:none}
+.tcard{position:relative;flex:none;width:148px;scroll-snap-align:start;text-align:left;padding:0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:var(--r);overflow:hidden}
+.tcard .ph{aspect-ratio:1;background:#0A0F25 center/contain no-repeat;display:grid;place-items:center;font-size:42px}
+.tcard .in{padding:8px 10px 10px}
+.tcard h3{margin:0 0 3px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard .price{font-size:13px}
+.tag{position:absolute;top:8px;left:8px;z-index:2;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.2px}
+.tag.top{background:var(--gold);color:var(--gold-ink)}
+.tag.sale{background:#FF4D6D;color:#fff}
+.old{color:var(--mute);text-decoration:line-through;font-size:12px;margin-left:6px;font-weight:400}
+.prof{display:flex;gap:12px;align-items:center;margin:12px 0}
+.av{width:64px;height:64px;border-radius:50%;background:var(--field);display:grid;place-items:center;font-size:28px;overflow:hidden;flex:none}
+.av img{width:100%;height:100%;object-fit:cover}
+.st{margin:10px 0;padding:10px 12px;border-radius:11px;background:rgba(127,162,255,.1);border:1px solid var(--line);font-size:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
@@ -202,6 +218,7 @@ button.mrow:active{background:rgba(255,255,255,.05)}
   <button data-t="nft" role="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10l4 5.5L12 20 3 9.5z" fill="currentColor" fill-opacity=".2"/><path d="M3 9.5h18M9.5 4 8 9.5 12 20M14.5 4 16 9.5 12 20"/></svg>NFT</button>
   <button data-t="wallet" role="tab"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3" fill="currentColor" fill-opacity=".2"/><path d="M16 6V5a2 2 0 0 0-2-2H6a3 3 0 0 0-3 3"/><circle cx="16.5" cy="13" r="1.2" fill="currentColor"/></svg>Hamyon</button>
   <button data-t="items" role="tab"><svg viewBox="0 0 24 24"><path d="M5.5 8h13l1 12h-15z" fill="currentColor" fill-opacity=".2"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8M9 12.5a3 3 0 0 0 6 0"/></svg>Buyumlar</button>
+  <button data-t="friends" role="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2" fill="currentColor" fill-opacity=".2"/><path d="M3.5 19c.4-3.2 2.7-5 5.5-5s5.100 1.800 5.500 5"/><circle cx="17" cy="9.500" r="2.500"/><path d="M16 14.200c2.700-.4 4.600 1.200 5 4.300"/></svg>Do'stlar</button>
 </nav>
 <div id="toast" role="status"></div>
 
@@ -267,7 +284,7 @@ async function refresh(all) {
     S.me = await api("/api/me"); S.fatal = null;
     if (all || S.tab === "home") S.hist = await api("/api/history");
     if (all || S.tab === "home") { try { S.banners = await api("/api/banners"); } catch (e) {} }
-    if (all || S.tab === "nft") S.nfts = await api("/api/nfts");
+    if (all || S.tab === "nft" || S.tab === "home") S.nfts = await api("/api/nfts");
     if (all || S.tab === "items") S.items = await api("/api/items");
   } catch (e) { if (!S.me) S.fatal = e.message; else if (all) toast(e.message, true); }
   if (!S.busy && !typing() && !$(".sheet-bg")) render();
@@ -280,7 +297,7 @@ function render() {
   if (!S.me) return;
   $("#tabs").hidden = false; topBar();
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === S.tab));
-  const view = { home: vHome, nft: vNft, wallet: vWallet, items: vItems }[S.tab]();
+  const view = { home: vHome, nft: vNft, wallet: vWallet, items: vItems, friends: vFriends }[S.tab]();
   app.innerHTML = hero() + view;
   initLottie(app);
   bind();
@@ -313,6 +330,23 @@ function initAds() {
   if (n > 1) adTimer = setInterval(() => { if (document.hidden) return; S.adIdx = (S.adIdx + 1) % n; tr.scrollTo({ left: S.adIdx * w(), behavior: "smooth" }); dots(); }, 4500);
 }
 
+function shelf(kind, title) {
+  const list = S.nfts.filter(n => n.badge === kind);
+  if (!list.length) return "";
+  return `<h2>${title}</h2><div class="shelf">` + list.map(n => {
+    const off = kind === "sale" && n.old_price_uzs > n.price_uzs ? Math.round((1 - n.price_uzs / n.old_price_uzs) * 100) : 0;
+    return `<button type="button" class="tcard" data-buy="${n.id}"><span class="tag ${kind}">${kind === "top" ? "🔥 TOP" : "💸 SKIDKA" + (off ? " −" + off + "%" : "")}</span>${mbox(n)}
+      <div class="in"><h3>${esc(n.title)}</h3><div class="price num" style="margin:0">${fmt(n.price_uzs)} so'm${off ? `<span class="old">${fmt(n.old_price_uzs)}</span>` : ""}</div></div></button>`;
+  }).join("") + `</div>`;
+}
+function vFriends() {
+  const f = S.me.friends, share = "https://t.me/share/url?url=" + encodeURIComponent(f.link) + "&text=" + encodeURIComponent("Mana shu botga qo'shiling!");
+  return `<h2>Do'stlarni taklif qiling</h2>
+    <div class="card"><div class="row"><span class="mute">Taklif qilinganlar</span><b class="num">${f.count}</b></div>
+      <div class="copy"><span>${esc(f.link)}</span><button type="button" data-v="${esc(f.link)}">Nusxa</button></div>
+      <button type="button" class="btn alt" data-share="${esc(share)}">Do'stlarga yuborish</button></div>
+    <div class="st">${f.earner ? "💰 Do'stingiz hisobini to'ldirsa yoki NFT sotib olsa, sizga referal foyda tushadi." : "💰 Referal foyda olish uchun botda «Shartnoma tuzish → Pul ishlash» arizasini yuboring."}</div>`;
+}
 function vHome() {
   const b = S.me.bal, f = S.me.friends;
   const hist = S.hist.length ? S.hist.map(t => `<div class="row"><div>${esc(t.label)}<div class="mute">${esc(t.t)}</div></div>
@@ -328,13 +362,12 @@ function vHome() {
       <button data-q="uc"><img class="qimg" alt="" src="/static/pubg.jpg">UC</button>
     </div>
     ${adsHtml()}
-    <h2>Do'stlarni taklif qiling</h2>
-    <div class="card"><div class="mute">Taklif qilinganlar: <b>${f.count}</b></div>
-      <div class="copy"><span>${esc(f.link)}</span><button id="cp" data-v="${esc(f.link)}">Nusxa</button></div></div>
+    ${shelf("top", "🔥 Top NFT sovg'alar")}${shelf("sale", "💸 Skidkadagi NFT sovg'alar")}
     <h2>So'nggi amallar</h2><div class="card hist">${hist}</div>`;
 }
 
 function mbox(n, full) {
+  if (full && n.anim) return `<div class="ph" data-lot="/anim/${n.id}" data-fb="/thumb/${n.id}" style="background-image:url('/thumb/${n.id}')"></div>`;
   if (!n.photo) return `<div class="ph">🎁</div>`;
   if (!full && n.kind !== "image")   // ro'yxatda animatsiya o'ynamaydi (telefon qotmasligi uchun): yengil statik rasm
     return `<div class="ph"><img loading="lazy" decoding="async" alt="" src="/thumb/${n.id}" onerror="this.parentNode.textContent='🎁'"></div>`;
@@ -344,10 +377,26 @@ function mbox(n, full) {
 }
 function initLottie(root) {
   root.querySelectorAll("[data-lot]").forEach(el => {
-    if (el.dataset.done || !window.lottie) return; el.dataset.done = 1;
-    try { lottie.loadAnimation({ container: el, renderer: "svg", loop: true, autoplay: true, path: el.dataset.lot }); } catch (e) {}
+    if (el.dataset.done) return; el.dataset.done = 1;
+    const fb = () => { if (el.dataset.fb) { el.style.backgroundImage = "none"; el.innerHTML = `<img alt="" src="${el.dataset.fb}" onerror="this.parentNode.textContent='🎁'">`; } };
+    if (!window.lottie) return fb();
+    try {
+      const a = lottie.loadAnimation({ container: el, renderer: "svg", loop: true, autoplay: true, path: el.dataset.lot,
+        rendererSettings: { progressiveLoad: true, preserveAspectRatio: "xMidYMid meet" } });
+      el._anim = a;
+      a.addEventListener("DOMLoaded", () => { el.style.backgroundImage = "none"; });
+      a.addEventListener("data_failed", fb);
+    } catch (e) { fb(); }
   });
 }
+function destroyLot(root) {   // oyna yopilganda animatsiya to'xtatiladi (aks holda telefon qotadi)
+  root.querySelectorAll("[data-lot]").forEach(el => { try { if (el._anim) el._anim.destroy(); } catch (e) {} el._anim = null; });
+}
+function openGiftLink(u) {
+  if (!/^https:\/\//.test(u || "")) return toast("Silka kiritilmagan", true);
+  try { if (tg && /^https:\/\/t\.me\//.test(u) && tg.openTelegramLink) tg.openTelegramLink(u); else if (tg && tg.openLink) tg.openLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); }
+}
+const VIEW_BTN = l => `<button type="button" class="btn" data-view="${esc(l)}" style="background:var(--field);color:var(--ink)">🔗 Sovg'ani ko'rish</button>`;
 function attrs(n) {
   return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
     .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(String(a[2]).replace(/%+$/, "")) + "%" : ""}`).join("<br>");
@@ -359,21 +408,75 @@ function vNft() {
     <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="price num">${fmt(n.price_uzs)} so'm</div>
     <div class="attr num" style="margin:-4px 0 8px">${fmt(n.price_j)} J · ${n.price_ton} TON</div>
-    <button class="btn alt" data-buy="${n.id}">Sotib olish</button></div></div>`).join("") + `</div>`;
+    <button class="btn alt" data-buy="${n.id}">Sotib olish</button>
+    ${S.me.is_admin && n.link ? `<button type="button" class="btn" data-view="${esc(n.link)}" style="margin-top:6px;background:var(--field);color:var(--ink)">🔗 Sovg'ani ko'rish</button>` : ""}</div></div>`).join("") + `</div>`;
 }
 function vItems() {
   const head = `<div class="grp"><div class="mrow">${sq("gift", "#C084FC", "#8B3DE8")}<span class="t">Inventar</span><span class="v num">${S.items.length}</span></div>
     <button type="button" class="mrow" data-hist>${sq("clock", "#FFB020", "#FF7A00")}<span class="t">Amallar tarixi</span>${CHEV}</button></div>`;
   if (!S.items.length) return head + `<div class="empty">Hali buyumingiz yo'q. «NFT» bo'limidan xarid qiling.</div>`;
   const th = i => i.nft_id && i.photo ? `<img loading="lazy" decoding="async" alt="" src="/thumb/${i.nft_id}" onerror="this.replaceWith(document.createTextNode('🎁'))">` : "🎁";
-  return head + `<div class="gh">Mening buyumlarim</div><div class="grp">` + S.items.map(i => `<button type="button" class="mrow" data-item="${i.id}"><span class="sq thumb">${th(i)}</span><span class="t">${esc(i.title)}<small>${esc(i.paid)} · ${esc(i.date)}</small></span>${CHEV}</button>`).join("") + `</div>`;
+  return head + `<div class="gh">Mening buyumlarim</div><div class="grp">` + S.items.map(i => `<button type="button" class="mrow" data-item="${i.id}"><span class="sq thumb">${th(i)}</span><span class="t">${esc(i.title)}<small>${esc(i.paid)} · ${esc(i.date)}${i.gift_status === "requested" ? " · ⏳ so'rov yuborilgan" : i.gift_status === "sent" ? " · ✅ yuborilgan" : ""}</small></span>${CHEV}</button>`).join("") + `</div>`;
 }
 function openItem(id) {
   const i = S.items.find(x => x.id === id); if (!i) return;
-  const { bg } = sheet(`${mbox({ id: i.nft_id, photo: !!(i.photo && i.nft_id), kind: i.kind }, true)}
+  const gs = i.gift_status === "requested" ? `<div class="st">⏳ Chiqarib olish so'rovi yuborilgan: <b>@${esc(i.gift_to)}</b>. Admin yuborishini kuting.</div>`
+    : i.gift_status === "sent" ? `<div class="st">✅ Sovg'a <b>@${esc(i.gift_to)}</b> akkauntiga yuborilgan.</div>`
+    : `<button type="button" class="btn" id="gift">📤 Chiqarib olish</button>`;
+  const { bg, close } = sheet(`${mbox({ id: i.nft_id, photo: !!(i.photo && i.nft_id), kind: i.kind, anim: i.anim }, true)}
     <h3 style="margin:0 0 4px">${esc(i.title)}</h3><div class="attr">${i.lines.map(esc).join("<br>")}</div>
-    <div class="mute" style="margin:8px 0">To'langan: ${esc(i.paid)} · ${esc(i.date)}</div>${CLOSE_BTN}`);
+    <div class="mute" style="margin:8px 0">To'langan: ${esc(i.paid)} · ${esc(i.date)}</div>${gs}${S.me.is_admin && i.link ? VIEW_BTN(i.link) : ""}${CLOSE_BTN}`);
   initLottie(bg);
+  const g = $("#gift", bg); if (g) g.onclick = () => { close(); openGift(i); };
+}
+async function loadAvatar(uname, el) {
+  try {
+    const r = await fetch("/api/gift/avatar?u=" + encodeURIComponent(uname), { headers: { "X-Init-Data": INIT } });
+    if (!r.ok) return;
+    const img = document.createElement("img"); img.alt = ""; img.src = URL.createObjectURL(await r.blob());
+    el.textContent = ""; el.appendChild(img);
+  } catch (e) {}
+}
+function openGift(i) {
+  const { bg, close } = sheet(`<div id="gbox"></div>`), box = $("#gbox", bg), me = S.me.user.username;
+  const head = `<div class="head">${sq("gift", "#C084FC", "#8B3DE8")}<div><b>${esc(i.title)}</b><div class="mute">Chiqarib olish</div></div></div>`;
+  const cancel = `<button type="button" class="btn" data-close style="background:var(--field);color:var(--ink)">Bekor qilish</button>`;
+  const wire = () => box.querySelectorAll("[data-close]").forEach(b => b.onclick = close);
+  const look = async name => {
+    name = (name || "").trim(); if (!name) return toast("Username yozing", true);
+    box.innerHTML = head + `<div class="spin">Profil qidirilmoqda…</div>`;
+    try { confirmStep(await api("/api/gift/lookup", { method: "POST", body: { username: name } })); }
+    catch (e) { toast(e.message, true); pick(); }
+  };
+  function pick() {
+    box.innerHTML = head + `<div class="mute" style="margin:10px 0 4px">Sovg'ani qaysi akkauntga yuboramiz?</div>
+      ${me ? `<button type="button" class="btn alt" id="gme">👤 O'zimga (@${esc(me)})</button>` : `<div class="need">Telegram'da username'ingiz yo'q, shuning uchun «O'zimga» ishlamaydi.</div>`}
+      <label for="gunm">Yoki boshqa odamning username'i</label>
+      <input id="gunm" placeholder="@username" autocapitalize="off" autocomplete="off" autocorrect="off" maxlength="60">
+      <button type="button" class="btn" id="gfind">Profilni topish</button>${cancel}`;
+    wire();
+    const gme = $("#gme", box); if (gme) gme.onclick = () => look(me);
+    $("#gfind", box).onclick = () => look($("#gunm", box).value);
+  }
+  function confirmStep(p) {
+    box.innerHTML = head + `<div class="prof"><div class="av" id="av">👤</div><div style="min-width:0"><b>${esc(p.name || "@" + p.username)}</b>
+        <div class="mute">@${esc(p.username)}</div>${p.bio ? `<div class="attr">${esc(p.bio)}</div>` : ""}</div></div>
+      ${p.found ? "" : `<div class="need">Bot bu profilni ko'ra olmadi (Telegram cheklovi). «Profilni ko'rish» orqali o'zingiz tekshiring.</div>
+        <button type="button" class="btn alt" id="gopen">👤 Profilni ko'rish</button>`}
+      <div style="text-align:center;font-weight:700;margin:14px 0 0">Shu profilmi?</div>
+      <button type="button" class="btn" id="gyes">✅ Ha, sovg'ani yuborish</button>
+      <button type="button" class="btn alt" id="gno">✏️ Boshqa username</button>${cancel}`;
+    wire();
+    if (p.found && p.has_photo) loadAvatar(p.username, $("#av", box));
+    const go = $("#gopen", box); if (go) go.onclick = () => { const u = "https://t.me/" + p.username; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } };
+    $("#gno", box).onclick = pick;
+    $("#gyes", box).onclick = async e => {
+      const btn = e.currentTarget; btn.disabled = true; S.busy = true;
+      try { const r = await api("/api/gift/send", { method: "POST", body: { item_id: i.id, username: p.username } }); close(); S.busy = false; toast(r.msg); await refresh(true); }
+      catch (er) { S.busy = false; btn.disabled = false; toast(er.message, true); }
+    };
+  }
+  pick();
 }
 async function openHist() {
   let h = []; try { h = await api("/api/history"); } catch (e) { return toast(e.message, true); }
@@ -466,9 +569,10 @@ function sheet(html, tag) {
   const bg = document.createElement("div"); bg.className = "sheet-bg";
   bg.innerHTML = `<${tag || "div"} class="sheet" role="dialog">${html}</${tag || "div"}>`;
   document.body.appendChild(bg);
-  const close = () => bg.remove();
+  const close = () => { destroyLot(bg); bg.remove(); };
   bg.onclick = e => { if (e.target === bg) close(); };
   const x = $("#x", bg); if (x) x.onclick = close;
+  bg.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
   return { bg, close };
 }
 const CLOSE_BTN = `<button type="button" class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button>`;
@@ -522,6 +626,8 @@ function bind() {
   app.querySelectorAll("[data-hist]").forEach(b => b.onclick = openHist);
   app.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { S.uc = +b.dataset.uc; app.querySelectorAll("[data-uc]").forEach(x => x.setAttribute("aria-pressed", +x.dataset.uc === S.uc)); });
   app.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => openBuy(+b.dataset.buy));
+  app.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
+  app.querySelectorAll("[data-share]").forEach(b => b.onclick = () => { const u = b.dataset.share; try { if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u, "_blank"); } catch (e) { window.open(u, "_blank"); } });
   const run = (id, fn) => {
     const f = $(id); if (!f) return;
     f.onsubmit = async e => {
@@ -581,12 +687,14 @@ function openBuy(id) {
   bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n, true)}
     <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
     <div class="pay">${opts.filter(o => !/^0(\.0+)? /.test(o[1])).map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
+    ${S.me.is_admin && n.link ? VIEW_BTN(n.link) : ""}
     <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
   document.body.appendChild(bg);
   initLottie(bg);
-  const close = () => bg.remove();
+  const close = () => { destroyLot(bg); bg.remove(); };
   bg.onclick = e => { if (e.target === bg) close(); };
   $("#x", bg).onclick = close;
+  bg.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
   bg.querySelectorAll("[data-c]").forEach(btn => btn.onclick = async () => {
     bg.querySelectorAll("button").forEach(x => x.disabled = true);
     try { const r = await api("/api/nft/buy", { method: "POST", body: { nft_id: id, cur: btn.dataset.c } }); close(); toast(r.msg); S.tab = "items"; await refresh(true); }

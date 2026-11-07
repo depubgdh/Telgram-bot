@@ -18,6 +18,7 @@ from urllib.parse import parse_qsl
 from aiogram.types import (BufferedInputFile, InlineKeyboardButton,
                            InlineKeyboardMarkup, LabeledPrice)
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 import httpx
@@ -25,16 +26,18 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 import config
-from admins import admin_ids
+from admins import admin_ids, check_admin
 from bot import (KINDS, WD, bot, create_card_topup, fmt, fmt_ton,
                  is_subscribed, j_cost, nft_card_text, rate_uzs, ton_cost)
 from db import (Banner, Nft, Request, Session, Transaction, User, UserItem,
                 change_balance, get_setting, get_user, pay_referral)
 
+from gifts import GiftError, lookup_profile, norm_username, profile_photo, public_info, request_gift  # noqa: E402
 from nft_fetch import parse_link  # noqa: E402
 from uc import uc_kb  # noqa: E402
 
 app = FastAPI()
+app.add_middleware(GZipMiddleware, minimum_size=1000)   # Lottie JSON katta: siqib yuboriladi (telefon tez yuklaydi)
 INDEX = Path(__file__).resolve().parent / "index.html"
 STATIC = Path(__file__).resolve().parent / "static"      # logotiplar va rasmlar (J, Stars, Humo/Uzcard, PUBG...)
 if STATIC.is_dir():
@@ -181,6 +184,7 @@ async def me(x_init_data: str = Header(...)):
     methods = await wd_methods()
     return {
         "user": {"tg_id": u.tg_id, "username": u.username},
+        "is_admin": await check_admin(u.tg_id, u.username),
         "frozen": bool(u.frozen),
         "bal": bal,
         "total_uzs": 0 if u.frozen else int(total),
@@ -296,16 +300,66 @@ async def nft_thumb(nft_id: int):
     return Response(data, media_type="image/webp", headers={"Cache-Control": "public, max-age=86400"})
 
 
+_anim_cache: dict[int, bytes] = {}
+_anim_miss: set[int] = set()
+
+
+def has_anim(n_media: str | None, link: str | None) -> bool:
+    """Mini App'da (sotib olish / buyum oynasida) animatsiya o'ynatish mumkinmi."""
+    kind = media_kind(n_media)
+    return kind != "video" and (kind == "lottie" or bool(parse_link(link or "")))
+
+
+@app.get("/anim/{nft_id}")
+async def nft_anim(nft_id: int):
+    """NFT animatsiyasi (Lottie JSON). Avval NFT havolasi bo'yicha Fragment'dan olinadi
+    (.lottie.json, bo'lmasa .tgs), bo'lmasa botga yuklangan .tgs ishlatiladi."""
+    data = _anim_cache.get(nft_id)
+    if data is None and nft_id not in _anim_miss:
+        async with Session() as s:
+            n = await s.get(Nft, nft_id)
+        if not n:
+            raise HTTPException(404, "NFT yo'q")
+        g = parse_link(n.link or "")
+        if g:
+            slug = f"{g[0].lower()}-{g[1]}"
+            try:
+                async with httpx.AsyncClient(timeout=25, follow_redirects=True) as cl:
+                    r = await cl.get(f"https://nft.fragment.com/gift/{slug}.lottie.json")
+                    if r.status_code == 200 and r.content.lstrip()[:1] == b"{":
+                        data = r.content
+                    else:
+                        r = await cl.get(f"https://nft.fragment.com/gift/{slug}.tgs")
+                        if r.status_code == 200 and r.content[:2] == b"\x1f\x8b":
+                            data = gzip.decompress(r.content)
+            except Exception:
+                data = None
+        if data is None and n.photo_file_id and media_kind(n.media) == "lottie":
+            return await nft_media(nft_id)        # botga yuklangan .tgs -> JSON
+        if data is None:
+            _anim_miss.add(nft_id)
+        else:
+            if len(_anim_cache) > 40:
+                _anim_cache.clear()
+            _anim_cache[nft_id] = data
+    if data is None:
+        raise HTTPException(404, "Animatsiya yo'q")
+    return Response(data, media_type="application/json", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/nfts")
 async def nfts(x_init_data: str = Header(...)):
-    await auth(x_init_data)
+    me_ = await auth(x_init_data)
+    adm = await check_admin(me_.tg_id, me_.username)
     jr, tr = await get_setting("j_uzs"), await get_setting("ton_uzs")
     async with Session() as s:
         items = (await s.execute(select(Nft).where(Nft.active, Nft.stock > 0).order_by(Nft.id))).scalars().all()
-    return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id), "kind": media_kind(n.media), "link": n.link or "",
+    return [{"id": n.id, "title": n.title, "photo": bool(n.photo_file_id), "kind": media_kind(n.media), "link": (n.link or "") if adm else "",   # silka faqat adminga
+             "anim": has_anim(n.media, n.link),
              "model": n.model, "model_pct": n.model_pct, "backdrop": n.backdrop, "backdrop_pct": n.backdrop_pct,
              "symbol": n.symbol, "symbol_pct": n.symbol_pct, "price_uzs": int(n.price_uzs),
-             "price_j": j_cost(n.price_uzs, jr), "price_ton": float(ton_cost(n.price_uzs, tr)), "price_stars": int(n.price_stars), "stock": int(n.stock)}
+             "price_j": j_cost(n.price_uzs, jr), "price_ton": float(ton_cost(n.price_uzs, tr)), "price_stars": int(n.price_stars), "stock": int(n.stock),
+             "badge": n.badge or "", "old_price_uzs": int(n.old_price_uzs or 0)}
             for n in items]
 
 
@@ -347,12 +401,14 @@ async def nft_buy(body: BuyIn, x_init_data: str = Header(...)):
         if n.stock <= 0:
             n.active = False
         s.add(UserItem(user_id=u.id, nft_id=n.id, title=n.title, card_text=nft_card_text(n, price=False),
-                       photo_file_id=n.photo_file_id, media=n.media or "photo", paid=f"{price_txt} {cur.upper()}"))
+                       photo_file_id=n.photo_file_id, media=n.media or "photo", link=n.link, paid=f"{price_txt} {cur.upper()}"))
         ref_info = await pay_referral(s, u, base, ref_pct, "nft")
         await s.commit()
     await tell_admins(f"🎁 NFT sotildi (Mini App): <b>{html.escape(n.title)}</b>\n"
                       f"Xaridor: {u.tg_id} @{u.username or '-'} {u.phone}\n"
-                      f"To'lov: {price_txt} {cur.upper()}\nNFT ni foydalanuvchiga yuboring.")
+                      f"To'lov: {price_txt} {cur.upper()}\n"
+                      f"🔗 Sovg'a silkasi: {html.escape(n.link) if n.link else '—'}\n"
+                      "Xaridor «Chiqarib olish» ni bossa, qayerga yuborish so'rovi alohida keladi.")
     if ref_info:
         await tell(ref_info[0], f"💰 Do'stlaringizdan biri NFT xarid qildi: sizga +{fmt(ref_info[1])} so'm referal foyda.")
     return {"ok": True, "msg": "Xarid qilindi! Admin NFT ni tez orada yuboradi."}
@@ -368,12 +424,72 @@ async def items(x_init_data: str = Header(...)):
     u = await auth(x_init_data)
     if u.frozen:
         return []
+    adm = await check_admin(u.tg_id, u.username)
     async with Session() as s:
         rows = (await s.execute(select(UserItem).where(UserItem.user_id == u.id)
                                 .order_by(UserItem.id.desc()).limit(50))).scalars().all()
+        ids = [it.nft_id for it in rows if it.nft_id]
+        nmap = {n.id: n for n in (await s.execute(select(Nft).where(Nft.id.in_(ids)))).scalars().all()} if ids else {}
     return [{"id": it.id, "title": it.title, "nft_id": it.nft_id, "photo": bool(it.photo_file_id),
-             "kind": media_kind(it.media), "lines": strip_tags(it.card_text)[1:], "paid": it.paid, "date": f"{it.created_at:%d.%m.%Y}"}
+             "kind": media_kind(it.media), "lines": strip_tags(it.card_text)[1:], "paid": it.paid, "date": f"{it.created_at:%d.%m.%Y}",
+             "gift_status": it.gift_status or "owned", "gift_to": it.gift_to or "",
+             "anim": bool(it.nft_id and it.nft_id in nmap and has_anim(nmap[it.nft_id].media, nmap[it.nft_id].link or it.link)),
+             "link": ((it.link or (nmap[it.nft_id].link if it.nft_id in nmap else "")) or "") if adm else ""}
             for it in rows]
+
+
+# ------------------------------------------------------------------ sovg'ani chiqarib olish
+_lookups: dict[int, list[float]] = {}
+
+
+def _lookup_limit(tg_id: int):
+    """Bir foydalanuvchi daqiqasiga ko'pi bilan 12 ta profil qidira oladi (Telegram'ni ortiqcha yuklamaslik uchun)."""
+    now = time.time()
+    hits = [t for t in _lookups.get(tg_id, []) if now - t < 60]
+    if len(hits) >= 12:
+        raise HTTPException(429, "Juda ko'p urinish. Bir daqiqadan so'ng qayta urinib ko'ring")
+    hits.append(now)
+    _lookups[tg_id] = hits
+
+
+class GiftLookIn(BaseModel):
+    username: str
+
+
+@app.post("/api/gift/lookup")
+async def gift_lookup(body: GiftLookIn, x_init_data: str = Header(...)):
+    u = await auth(x_init_data, write=True)
+    _lookup_limit(u.tg_id)
+    uname = norm_username(body.username)
+    if not uname:
+        raise HTTPException(400, "Username noto'g'ri. Masalan: @ali_123 (kamida 5 belgi)")
+    return public_info(await lookup_profile(uname))
+
+
+@app.get("/api/gift/avatar")
+async def gift_avatar(u: str, x_init_data: str = Header(...)):
+    me_ = await auth(x_init_data, write=True)
+    _lookup_limit(me_.tg_id)
+    uname = norm_username(u)
+    data = await profile_photo(uname) if uname else None
+    if not data:
+        raise HTTPException(404, "Rasm yo'q")
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})
+
+
+class GiftSendIn(BaseModel):
+    item_id: int
+    username: str
+
+
+@app.post("/api/gift/send")
+async def gift_send(body: GiftSendIn, x_init_data: str = Header(...)):
+    u = await auth(x_init_data, write=True)
+    try:
+        it = await request_gift(u, body.item_id, body.username)
+    except GiftError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "msg": f"So'rov adminga yuborildi: @{it.gift_to}. Admin sovg'ani yuborgach xabar keladi."}
 
 
 # ------------------------------------------------------------------ almashtirish
