@@ -203,6 +203,59 @@ button.mrow:active{background:rgba(255,255,255,.05)}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 @keyframes tw{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== NFT bozori: yangi dizayn (karta, oyna, qidiruv, suvli menyu) ===== */
+option{background:#101733;color:#EAF0FF}
+.grid{gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.nft{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:26px;padding:10px;overflow:visible;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tile{position:relative;border-radius:20px;overflow:hidden;cursor:pointer}
+.nft .ph{aspect-ratio:1;border-radius:20px}
+.cnt{position:absolute;top:8px;right:8px;z-index:2;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;background:rgba(0,0,0,.45);color:#fff}
+.nm{font-size:17px;font-weight:700;margin:11px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.no{color:var(--mute);font-weight:600;font-size:14px;margin:1px 4px 10px;min-height:1.4em}
+.buy{display:flex;gap:8px}
+.pill{flex:1;min-width:0;border:0;border-radius:999px;padding:12px 6px;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(180deg,#34A0FF,#1672EE);box-shadow:0 6px 16px rgba(22,114,238,.4),inset 0 1px 0 rgba(255,255,255,.35);white-space:nowrap;transition:transform .12s}
+.pill:active{transform:scale(.97)}
+.rb{position:absolute;right:8px;bottom:8px;z-index:2;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-size:15px}
+.srch{position:relative;margin:4px 0 10px}
+.srch input{padding:13px 16px 13px 44px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1)}
+.srch svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:20px;height:20px;stroke:var(--mute);fill:none;stroke-width:2;stroke-linecap:round}
+.pills{display:flex;gap:8px;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
+.pills::-webkit-scrollbar{display:none}
+.pills select{flex:none;width:auto;max-width:190px;appearance:none;-webkit-appearance:none;padding:10px 32px 10px 15px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.07) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23EAF0FF' stroke-width='2' stroke-linecap='round'/></svg>") no-repeat right 12px center/12px}
+.pills select.on{border-color:#3A8DFF;color:#7DB5FF}
+.pills .x{flex:none;border:0;border-radius:999px;padding:10px 14px;background:rgba(255,95,95,.16);color:#FF8F8F;font-weight:700;font-size:14px}
+.sheet-bg{-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+.sheet{background:linear-gradient(180deg,rgba(28,34,70,.98),rgba(13,17,38,.99));border:1px solid rgba(255,255,255,.1);border-bottom:0;border-radius:30px 30px 0 0;padding:10px 16px calc(18px + env(safe-area-inset-bottom))}
+.grab{width:44px;height:5px;border-radius:3px;background:rgba(255,255,255,.28);margin:0 auto 12px}
+.sheet .ph{border-radius:26px}
+.hd{position:relative;margin-bottom:12px}
+.hd .ph{margin:0}
+.hd .cap{position:absolute;left:0;right:0;bottom:0;padding:46px 12px 14px;text-align:center;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));border-radius:0 0 26px 26px;pointer-events:none}
+.hd .cap b{display:block;font-size:26px;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+.hd .cap span{color:rgba(255,255,255,.72);font-weight:700}
+.tbl{border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);overflow:hidden;margin:12px 0}
+.tr{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.tr:last-child{border:0}
+.tr .k{color:var(--mute);width:76px;flex:none}
+.tr .v{color:#4DA3FF;font-weight:700;flex:1;min-width:0}
+.tr .p{font-size:12px;font-weight:800;color:#7DB5FF;background:rgba(58,141,255,.18);border-radius:999px;padding:3px 9px}
+.priceh{color:var(--mute);margin:16px 4px 8px;font-size:14px}
+.pay{grid-template-columns:1fr 1fr;gap:10px;margin-top:0}
+.pay button{flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:14px;border-radius:20px;text-align:left}
+.pay button span:first-child{font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px}
+.pay button span:last-child{font-size:12px;color:var(--mute)}
+.pay button:not(:disabled){background:linear-gradient(180deg,rgba(52,160,255,.3),rgba(22,114,238,.16));border-color:rgba(90,170,255,.5)}
+.pay button:not(:disabled) span:last-child{color:#9CCBFF}
+/* suvli (shisha) pastki menyu; pastga aylantirganda yashirinadi */
+nav{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05)),rgba(22,28,70,.42);border:1px solid rgba(255,255,255,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(255,255,255,.06),0 16px 40px rgba(0,0,0,.4);
+  -webkit-backdrop-filter:blur(28px) saturate(1.9);backdrop-filter:blur(28px) saturate(1.9);
+  transition:transform .38s cubic-bezier(.2,.85,.25,1),opacity .3s}
+nav.away{transform:translateY(calc(100% + 28px));opacity:0;pointer-events:none}
+nav button[aria-selected="true"]{background:linear-gradient(180deg,rgba(160,185,255,.38),rgba(110,130,255,.16));box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 14px rgba(80,110,255,.25)}
+
 </style>
 </head>
 <body>
@@ -238,7 +291,7 @@ const fmt = n => Number(n).toLocaleString("ru-RU").replace(/ /g, " ");
 
 const S = { me: null, tab: "home", seg: "topup", nfts: [], items: [], hist: [], busy: false,
             wd: "card", tp: "card", pend: null, tonAmt: "", cv: ["UZS", "J"], uc: null, fatal: null, banners: [], adIdx: 0,
-            f: { sort: "price_asc", coll: "", model: "", backdrop: "", symbol: "" } };
+            f: { sort: "price_asc", q: "", coll: "", model: "", backdrop: "", symbol: "" } };
 const CUR = {UZS: "So'm", J: "J", STARS: "Stars", TON: "TON"};
 const LOGO = "/static/j.jpg";
 const ICO = { j: "/static/j.jpg", stars: "/static/stars.svg", ton: "/static/ton.svg", uc: "/static/pubg.jpg" };
@@ -408,37 +461,49 @@ function attrs(n) {
   return [["Model", n.model, n.model_pct], ["Orqa fon", n.backdrop, n.backdrop_pct], ["Belgi", n.symbol, n.symbol_pct]]
     .filter(a => a[1]).map(a => `${a[0]}: ${esc(a[1])}${a[2] ? " " + esc(String(a[2]).replace(/%+$/, "")) + "%" : ""}`).join("<br>");
 }
+function splitTitle(t) { const m = /^(.*?)\s*(#\d+)\s*$/.exec(t || ""); return m ? [m[1], m[2]] : [t || "", ""]; }
 function nftView() {
-  const f = S.f;
+  const f = S.f, q = (f.q || "").trim().toLowerCase();
   const cmp = { price_asc: (a, b) => a.price_uzs - b.price_uzs, price_desc: (a, b) => b.price_uzs - a.price_uzs,
                 name: (a, b) => a.title.localeCompare(b.title, "uz", { numeric: true }) }[f.sort] || ((a, b) => a.price_uzs - b.price_uzs);
-  return S.nfts.filter(n => (!f.coll || n.coll === f.coll) && (!f.model || n.model === f.model)
-    && (!f.backdrop || n.backdrop === f.backdrop) && (!f.symbol || n.symbol === f.symbol)).sort(cmp);
+  return S.nfts.filter(n => (!q || n.title.toLowerCase().includes(q) || (n.coll || "").toLowerCase().includes(q)) && (!f.coll || n.coll === f.coll)
+    && (!f.model || n.model === f.model) && (!f.backdrop || n.backdrop === f.backdrop) && (!f.symbol || n.symbol === f.symbol)).sort(cmp);
 }
 function nftFilters() {
   const f = S.f, uniq = k => [...new Set(S.nfts.map(n => n[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
   const cnt = {}; S.nfts.forEach(n => { if (n.coll) cnt[n.coll] = (cnt[n.coll] || 0) + 1; });
-  const colls = Object.keys(cnt).sort((a, b) => a.localeCompare(b));
-  const sel = (key, label) => { const o = uniq(key); return o.length ? `<select data-f="${key}" aria-label="${label}"><option value="">${label}</option>${o.map(v => `<option value="${esc(v)}"${f[key] === v ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""; };
+  const sel = (key, label, opts) => opts.length ? `<select data-f="${key}" aria-label="${label}" class="${f[key] ? "on" : ""}"><option value="">${label}</option>${opts.map(([v, t]) => `<option value="${esc(v)}"${f[key] === v ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>` : "";
+  const same = k => uniq(k).map(v => [v, v]);
   const active = f.coll || f.model || f.backdrop || f.symbol;
-  return `<div class="fchips"><button type="button" class="chip" data-fc="" aria-pressed="${!f.coll}">Hammasi</button>${colls.map(c => `<button type="button" class="chip" data-fc="${esc(c)}" aria-pressed="${f.coll === c}">${esc(c)} (${cnt[c]})</button>`).join("")}</div>
-    <select id="fsort" data-f="sort" aria-label="Saralash"><option value="price_asc"${f.sort === "price_asc" ? " selected" : ""}>Narx: arzonlari birinchi</option>
-      <option value="price_desc"${f.sort === "price_desc" ? " selected" : ""}>Narx: qimmatlari birinchi</option>
-      <option value="name"${f.sort === "name" ? " selected" : ""}>Nomi bo'yicha (A–Z)</option></select>
-    <div class="fsel">${sel("model", "Model")}${sel("backdrop", "Orqa fon")}${sel("symbol", "Belgi")}</div>
-    ${active ? `<button type="button" class="btn alt" data-freset style="margin:0 0 10px">✕ Filtrni tozalash</button>` : ""}`;
+  return `<div class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.500-3.500"/></svg>
+      <input id="fq" type="search" inputmode="search" placeholder="Tez qidirish (nom yoki #raqam)" autocomplete="off" value="${esc(f.q)}"></div>
+    <div class="pills">
+      <select data-f="sort" aria-label="Saralash" class="on"><option value="price_asc"${f.sort === "price_asc" ? " selected" : ""}>↑ Arzonlari birinchi</option>
+        <option value="price_desc"${f.sort === "price_desc" ? " selected" : ""}>↓ Qimmatlari birinchi</option>
+        <option value="name"${f.sort === "name" ? " selected" : ""}>A–Z Nomi bo'yicha</option></select>
+      ${sel("coll", "Kolleksiya", Object.keys(cnt).sort((a, b) => a.localeCompare(b)).map(c => [c, `${c} (${cnt[c]})`]))}
+      ${sel("model", "Model", same("model"))}${sel("backdrop", "Orqa fon", same("backdrop"))}${sel("symbol", "Belgi", same("symbol"))}
+      ${active ? `<button type="button" class="x" data-freset>✕ Tozalash</button>` : ""}</div>`;
+}
+function nftCard(n) {
+  const [nm, no] = splitTitle(n.title);
+  const tag = n.badge === "top" ? `<span class="tag top">🔥 TOP</span>` : n.badge === "sale" ? `<span class="tag sale">💸 SKIDKA</span>` : "";
+  const old = n.badge === "sale" && n.old_price_uzs > n.price_uzs ? `<span class="old">${fmt(n.old_price_uzs)}</span>` : "";
+  return `<div class="nft"><div class="tile" data-buy="${n.id}" role="button" aria-label="${esc(n.title)}">${tag}${n.stock > 1 ? `<span class="cnt">×${n.stock}</span>` : ""}${mbox(n)}${S.me.is_admin && n.link ? `<button type="button" class="rb" data-view="${esc(n.link)}" aria-label="Sovg'ani ko'rish">🔗</button>` : ""}</div>
+    <div class="nm">${esc(nm || n.title)}</div><div class="no num">${esc(no)}${old}</div>
+    <div class="buy"><button type="button" class="pill num" data-buy="${n.id}">${fmt(n.price_uzs)} so'm</button></div></div>`;
+}
+function nftGrid() {
+  const list = nftView();
+  return list.length ? `<div class="grid">${list.map(nftCard).join("")}</div>` : `<div class="empty">Hech narsa topilmadi.</div>`;
+}
+function bindCards(root) {
+  root.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => openBuy(+b.dataset.buy));
+  root.querySelectorAll("[data-view]").forEach(b => b.onclick = e => { e.stopPropagation(); openGiftLink(b.dataset.view); });
 }
 function vNft() {
   if (!S.nfts.length) return `<div class="empty">Hozir sotuvda NFT yo'q. Tez orada yangilari qo'shiladi.</div>`;
-  const list = nftView();
-  return `<h2>Sotuvdagi NFT</h2>${nftFilters()}` + (list.length ? `<div class="grid">` + list.map(n => `
-    <div class="nft">${mbox(n)}
-    <div class="in"><h3>${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
-    <div class="price num">${fmt(n.price_uzs)} so'm</div>
-    <div class="attr num" style="margin:-4px 0 8px">${fmt(n.price_j)} J · ${n.price_ton} TON</div>
-    <button class="btn alt" data-buy="${n.id}">Sotib olish</button>
-    ${S.me.is_admin && n.link ? `<button type="button" class="btn" data-view="${esc(n.link)}" style="margin-top:6px;background:var(--field);color:var(--ink)">🔗 Sovg'ani ko'rish</button>` : ""}</div></div>`).join("") + `</div>`
-    : `<div class="empty">Bu filtr bo'yicha NFT topilmadi.</div>`);
+  return `<h2>Sotuvdagi NFT</h2>${nftFilters()}<div id="nftgrid">${nftGrid()}</div>`;
 }
 function vItems() {
   const head = `<div class="grp"><div class="mrow">${sq("gift", "#C084FC", "#8B3DE8")}<span class="t">Inventar</span><span class="v num">${S.items.length}</span></div>
@@ -596,7 +661,7 @@ function wWd() {
 }
 function sheet(html, tag) {
   const bg = document.createElement("div"); bg.className = "sheet-bg";
-  bg.innerHTML = `<${tag || "div"} class="sheet" role="dialog">${html}</${tag || "div"}>`;
+  bg.innerHTML = `<${tag || "div"} class="sheet" role="dialog"><div class="grab"></div>${html}</${tag || "div"}>`;
   document.body.appendChild(bg);
   const close = () => { destroyLot(bg); bg.remove(); };
   bg.onclick = e => { if (e.target === bg) close(); };
@@ -655,7 +720,8 @@ function bind() {
   app.querySelectorAll("[data-hist]").forEach(b => b.onclick = openHist);
   app.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { S.uc = +b.dataset.uc; app.querySelectorAll("[data-uc]").forEach(x => x.setAttribute("aria-pressed", +x.dataset.uc === S.uc)); });
   app.querySelectorAll("[data-buy]").forEach(b => b.onclick = () => openBuy(+b.dataset.buy));
-  app.querySelectorAll("[data-fc]").forEach(b => b.onclick = () => { S.f.coll = b.dataset.fc; render(); });
+  const fq = $("#fq");
+  if (fq) { let t; fq.oninput = () => { clearTimeout(t); t = setTimeout(() => { S.f.q = fq.value; const g = $("#nftgrid"); if (g) { g.innerHTML = nftGrid(); bindCards(g); } }, 150); }; }
   app.querySelectorAll("[data-f]").forEach(el => el.onchange = () => { S.f[el.dataset.f] = el.value; render(); });
   app.querySelectorAll("[data-freset]").forEach(b => b.onclick = () => { S.f = { ...S.f, coll: "", model: "", backdrop: "", symbol: "" }; render(); });
   app.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
@@ -715,9 +781,13 @@ function preview() {
 function openBuy(id) {
   const n = S.nfts.find(x => x.id === id); if (!n) return;
   const b = S.me.bal, bg = document.createElement("div"); bg.className = "sheet-bg";
+  const [nm, no] = splitTitle(n.title);
   const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["ton", `${n.price_ton} ${ic('ton')}`, n.price_ton > 0 && parseFloat(b.ton) >= n.price_ton], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
-  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}">${mbox(n, true)}
-    <h3 style="margin:0 0 4px">${esc(n.title)}</h3><div class="attr">${attrs(n)}</div>
+  const rows = [["Model", n.model, n.model_pct], ["Belgi", n.symbol, n.symbol_pct], ["Orqa fon", n.backdrop, n.backdrop_pct]].filter(r => r[1]);
+  bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}"><div class="grab"></div>
+    <div class="hd">${mbox(n, true)}<div class="cap"><b>${esc(nm || n.title)}</b><span>${esc(no)}</span></div></div>
+    ${rows.length ? `<div class="tbl">${rows.map(r => `<div class="tr"><span class="k">${r[0]}</span><span class="v">${esc(r[1])}</span>${r[2] ? `<span class="p">${esc(String(r[2]).replace(/%+$/, ""))}%</span>` : ""}</div>`).join("")}</div>` : ""}
+    <div class="priceh">Narxi va to'lash usuli</div>
     <div class="pay">${opts.filter(o => !/^0(\.0+)? /.test(o[1])).map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
     ${S.me.is_admin && n.link ? VIEW_BTN(n.link) : ""}
     <button class="btn" id="x" style="background:var(--field);color:var(--ink)">Yopish</button></div>`;
@@ -734,7 +804,20 @@ function openBuy(id) {
   });
 }
 
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.t; window.scrollTo(0, 0); render(); refresh(false); });
+// pastki menyu: pastga aylantirganda yashirinadi, tepaga aylantirganda qaytadi
+(() => {
+  let last = window.scrollY, busy = false;
+  window.addEventListener("scroll", () => {
+    if (busy) return; busy = true;
+    requestAnimationFrame(() => {
+      const y = Math.max(0, window.scrollY), d = y - last, nav = $("#tabs");
+      if (nav) { if (y < 60 || d < -6) nav.classList.remove("away"); else if (d > 8) nav.classList.add("away"); }
+      last = y; busy = false;
+    });
+  }, { passive: true });
+})();
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.t; $("#tabs").classList.remove("away"); window.scrollTo(0, 0); render(); refresh(false); });
 
 // botdagi o'zgarishlar bilan bir xil bo'lishi uchun har 15 soniyada yangilanadi
 setInterval(() => { if (!document.hidden && !S.busy) refresh(false); }, 15000);
