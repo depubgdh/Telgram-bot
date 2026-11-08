@@ -166,6 +166,13 @@ async def index():
 
 
 # ------------------------------------------------------------------ profil va balans
+async def _bot_uname_safe() -> str:
+    try:
+        return await bot_username()
+    except Exception:
+        return ""
+
+
 @app.get("/api/me")
 async def me(x_init_data: str = Header(...)):
     u = await auth(x_init_data)
@@ -193,6 +200,7 @@ async def me(x_init_data: str = Header(...)):
                   "min": int(await get_setting("topup_min")), "fee": float(await get_setting("topup_card_fee")),
                   "ton_wallet": config.TON_WALLET, "ton_memo": f"U{u.tg_id}", "ton_min": 0.1},
         "support": config.SUPPORT_USERNAME,
+        "bot": await _bot_uname_safe(),
         "withdraw": {k: {"label": m["label"], "cur": m["cur"], "min": int(m["min"]),
                          "fee": float(m["fee"]), "ask": m["ask"]} for k, m in methods.items()},
         "uc_packs": [{"qty": q, "price": int(rates["uc_uzs"] * q)} for q in UC_PACKS],

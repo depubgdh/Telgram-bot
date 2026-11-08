@@ -228,6 +228,10 @@ option{background:#101733;color:#EAF0FF}
 .pills .x{flex:none;border:0;border-radius:999px;padding:10px 14px;background:rgba(255,95,95,.16);color:#FF8F8F;font-weight:700;font-size:14px}
 .sheet-bg{-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 .sheet{background:linear-gradient(180deg,rgba(28,34,70,.98),rgba(13,17,38,.99));border:1px solid rgba(255,255,255,.1);border-bottom:0;border-radius:30px 30px 0 0;padding:10px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet{overscroll-behavior:contain;touch-action:pan-y}
+.sheet .hd{position:relative}
+.shr{position:absolute;top:10px;right:10px;z-index:3;border:0;border-radius:999px;padding:8px 13px;font-weight:700;font-size:13px;line-height:1;font-family:inherit;color:#fff;background:rgba(0,0,0,.38);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.shr:active{transform:scale(.95)}
 .grab{width:44px;height:5px;border-radius:3px;background:rgba(255,255,255,.28);margin:0 auto 12px}
 .sheet .ph{border-radius:26px}
 .hd{position:relative;margin-bottom:12px}
@@ -660,12 +664,54 @@ function wWd() {
     <div class="gh">Yechib olish usuli</div>
     <div class="grp">${["card", "phone"].map(row).join("")}</div><div class="grp">${["stars", "uc", "nft"].map(row).join("")}</div>`;
 }
+// pastga surib yopish: tutqich (yoki sheet tepada turganda istalgan joy) bo'yicha pastga tortilsa yopiladi
+function swipeClose(bg, close) {
+  const sh = bg.querySelector(".sheet"); if (!sh) return;
+  let y0 = null, dy = 0, drag = false;
+  const start = e => {
+    const t = e.touches[0];
+    if (e.target.closest("input,select,textarea")) return;
+    if (sh.scrollTop > 0 && !e.target.closest(".grab")) return;
+    y0 = t.clientY; dy = 0; drag = false;
+  };
+  const move = e => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy > 6 && (sh.scrollTop <= 0 || drag)) {
+      drag = true; sh.style.transition = "none"; sh.style.transform = `translateY(${dy}px)`;
+      bg.style.background = `rgba(0,0,0,${Math.max(0, .45 - dy / 900)})`;
+      if (e.cancelable) e.preventDefault();
+    } else if (dy < 0 && !drag) { y0 = null; }
+  };
+  const end = () => {
+    if (y0 === null) return; y0 = null;
+    if (!drag) return; drag = false;
+    sh.style.transition = "transform .22s ease";
+    if (dy > Math.min(140, sh.offsetHeight * .25)) {
+      sh.style.transform = "translateY(100%)"; bg.style.background = "rgba(0,0,0,0)";
+      setTimeout(close, 190);
+    } else { sh.style.transform = ""; bg.style.background = ""; }
+  };
+  sh.addEventListener("touchstart", start, { passive: true });
+  sh.addEventListener("touchmove", move, { passive: false });
+  sh.addEventListener("touchend", end); sh.addEventListener("touchcancel", end);
+}
+// sovg'a havolasini do'stga yuborish (Telegram ulashish oynasi ochiladi)
+function shareNft(n) {
+  const bot = S.me && S.me.bot; if (!bot) { toast("Havola hozircha mavjud emas", true); return; }
+  const link = `https://t.me/${bot}?start=nft_${n.id}`;
+  const text = `🎁 ${n.title} — ${fmt(n.price_uzs)} so'm`;
+  const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+  try { if (tg && tg.openTelegramLink) return tg.openTelegramLink(url); } catch (e) {}
+  window.open(url, "_blank");
+}
 function sheet(html, tag) {
   const bg = document.createElement("div"); bg.className = "sheet-bg";
   bg.innerHTML = `<${tag || "div"} class="sheet" role="dialog"><div class="grab"></div>${html}</${tag || "div"}>`;
   document.body.appendChild(bg);
   const close = () => { destroyLot(bg); bg.remove(); };
   bg.onclick = e => { if (e.target === bg) close(); };
+  swipeClose(bg, close);
   const x = $("#x", bg); if (x) x.onclick = close;
   bg.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
   return { bg, close };
@@ -786,7 +832,7 @@ function openBuy(id) {
   const opts = [["uzs", `${fmt(n.price_uzs)} so'm`, b.uzs >= n.price_uzs], ["j", `${fmt(n.price_j)} ${ic('j')}`, n.price_j > 0 && b.j >= n.price_j], ["ton", `${n.price_ton} ${ic('ton')}`, n.price_ton > 0 && parseFloat(b.ton) >= n.price_ton], ["stars", `${fmt(n.price_stars)} ${ic('stars')}`, n.price_stars > 0 && b.stars >= n.price_stars]];
   const rows = [["Model", n.model, n.model_pct], ["Belgi", n.symbol, n.symbol_pct], ["Orqa fon", n.backdrop, n.backdrop_pct]].filter(r => r[1]);
   bg.innerHTML = `<div class="sheet" role="dialog" aria-label="${esc(n.title)}"><div class="grab"></div>
-    <div class="hd">${mbox(n, true)}<div class="cap"><b>${esc(nm || n.title)}</b><span>${esc(no)}</span></div></div>
+    <div class="hd">${mbox(n, true)}<div class="cap"><b>${esc(nm || n.title)}</b><span>${esc(no)}</span></div><button type="button" class="shr" id="shr" aria-label="Ulashish">🔗 Ulashish</button></div>
     ${rows.length ? `<div class="tbl">${rows.map(r => `<div class="tr"><span class="k">${r[0]}</span><span class="v">${esc(r[1])}</span>${r[2] ? `<span class="p">${esc(String(r[2]).replace(/%+$/, ""))}%</span>` : ""}</div>`).join("")}</div>` : ""}
     <div class="priceh">Narxi va to'lash usuli</div>
     <div class="pay">${opts.filter(o => !/^0(\.0+)? /.test(o[1])).map(o => `<button data-c="${o[0]}" ${o[2] ? "" : "disabled"}><span>${o[1]}</span><span>${o[2] ? "To'lash" : "Balans yetmaydi"}</span></button>`).join("")}</div>
@@ -796,6 +842,8 @@ function openBuy(id) {
   initLottie(bg);
   const close = () => { destroyLot(bg); bg.remove(); };
   bg.onclick = e => { if (e.target === bg) close(); };
+  swipeClose(bg, close);
+  $("#shr", bg).onclick = () => shareNft(n);
   $("#x", bg).onclick = close;
   bg.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGiftLink(b.dataset.view));
   bg.querySelectorAll("[data-c]").forEach(btn => btn.onclick = async () => {
@@ -825,7 +873,12 @@ setInterval(() => { if (!document.hidden && !S.busy) refresh(false); }, 15000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
 setInterval(pollPend, 4000);
 try { const p = JSON.parse(localStorage.getItem("pend") || "null"); if (p && p.id) S.pend = p; } catch (e) {}
-refresh(true);
+refresh(true).then(() => {
+  try {   // do'st ulashgan havola: ?nft=ID bo'lsa shu sovg'a darhol ochiladi
+    const id = +new URLSearchParams(location.search).get("nft");
+    if (id) { if (S.nfts.some(x => x.id === id)) openBuy(id); else toast("Bu sovg'a sotilgan yoki mavjud emas", true); }
+  } catch (e) {}
+});
 </script>
 </body>
 </html>

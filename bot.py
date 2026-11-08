@@ -294,9 +294,12 @@ def back_kb(to="m:main") -> InlineKeyboardMarkup:
 async def start(m: Message, state: FSMContext):
     await state.clear()
     ref = None
+    nft_id = None
     parts = (m.text or "").split(maxsplit=1)
     if len(parts) > 1 and parts[1].startswith("ref_") and parts[1][4:].isdigit():
         ref = int(parts[1][4:])
+    elif len(parts) > 1 and parts[1].startswith("nft_") and parts[1][4:].isdigit():
+        nft_id = int(parts[1][4:])   # do'st ulashgan sovg'a havolasi
     u = await get_or_create_user(m.from_user.id, m.from_user.username, ref)
     await is_admin(m.from_user)  # admin bo'lsa, ID si eslab qolinadi
     if u.banned:
@@ -310,15 +313,39 @@ async def start(m: Message, state: FSMContext):
             [InlineKeyboardButton(text="📢 Kanalga o'tish", url=link)],
             [InlineKeyboardButton(text="✅ Tekshirish", callback_data="chk:sub")]])
         return await m.answer("Botdan foydalanish uchun kripto kanalga obuna bo'ling:", reply_markup=kb)
-    await after_sub(m, u)
+    await after_sub(m, u, nft_id)
 
 
-async def after_sub(m: Message, u: User):
+async def send_shared_nft(m: Message, nft_id: int) -> bool:
+    """Ulashilgan havola orqali kelganda sovg'a kartochkasini va Mini App'da ochish tugmasini ko'rsatadi."""
+    async with Session() as s:
+        n = await s.get(Nft, nft_id)
+    if not n or not n.active or n.stock <= 0:
+        await m.answer("😔 Bu sovg'a sotilgan yoki mavjud emas.")
+        return False
+    cap = f"🎁 <b>{html.escape(n.title)}</b>\n"
+    for lbl, val in (("Model", n.model), ("Belgi", n.symbol), ("Orqa fon", n.backdrop)):
+        if val:
+            cap += f"• {lbl}: <b>{html.escape(val)}</b>\n"
+    cap += f"\n💰 Narxi: <b>{fmt(n.price_uzs)} so'm</b>"
+    rows = []
+    if config.WEBAPP_URL:
+        sep = "&" if "?" in config.WEBAPP_URL else "?"
+        rows.append([InlineKeyboardButton(text="🎁 Ko'rish va sotib olish",
+                                          web_app=WebAppInfo(url=f"{config.WEBAPP_URL}{sep}nft={n.id}"))])
+    rows.append([InlineKeyboardButton(text="🏠 Bosh menyu", callback_data="m:main")])
+    await answer_card(m, n.photo_file_id, n.media, cap, InlineKeyboardMarkup(inline_keyboard=rows))
+    return True
+
+
+async def after_sub(m: Message, u: User, nft_id: int | None = None):
     if not u.terms_accepted:
         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Roziman", callback_data="terms:ok")]])
         return await m.answer(TERMS, reply_markup=kb)
     if not u.phone:
         return await ask_phone(m)
+    if nft_id and await send_shared_nft(m, nft_id):
+        return
     await show_main(m, u.tg_id)
 
 
