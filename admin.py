@@ -20,7 +20,7 @@ from sqlalchemy import func, or_, select
 
 import config
 from admins import admin_ids, is_admin
-from bot import (DEFAULT_WELCOME, bot, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost,
+from bot import (BUILTIN_KINDS, DEFAULT_MENU, DEFAULT_WELCOME, STYLE_DOT, TABS, bot, load_menu, save_menu, detect_media, dp, fmt, fmt_ton, fmt_tx, header, j_cost,
                  nft_card_text, ton_cost)
 from db import (Application, Banner, Bonus, Nft, Request, Session, Transaction, User,
                 UserItem, change_balance, get_setting, get_str_setting,
@@ -69,6 +69,10 @@ async def show(c: CallbackQuery, text: str, markup: InlineKeyboardMarkup):
 
 
 class A(StatesGroup):
+    menu_name = State()
+    menu_val = State()
+    menu_new_name = State()
+    menu_new_val = State()
     welcome_text = State()
     welcome_media = State()
     find_user = State()
@@ -106,6 +110,7 @@ PANEL = KB([
     [B("📢 Majburiy kanal", "adm:channel"), B("📈 Statistika", "adm:stats")],
     [B("🖼 Mini App reklamasi", "adm:mb"), B("🎟 UC vaucherlar", "adm:uc")],
     [B("🏠 Bosh menyu matni va rasmi", "adm:welcome")],
+    [B("🧩 Menyu tugmalari (rang/joy)", "adm:menu")],
     [B("⬅️ Asosiy menyu", "m:main")],
 ])
 
@@ -114,6 +119,293 @@ PANEL = KB([
 async def cmd_admin(m: Message, state: FSMContext):
     await state.clear()
     await m.answer("👑 <b>Admin panel</b>", reply_markup=PANEL)
+
+
+# ------------------------------------------------------------ Bosh menyu tugmalarini sozlash
+KIND_NAMES = {"url": "🔗 havola", "tab": "📱 Mini App bo'limi", "text": "💬 matn"}
+
+
+def mlabel(it: dict) -> str:
+    return f"{'🚫' if it.get('hide') else STYLE_DOT.get(it.get('style', ''), '⚪')} {it['text']}"
+
+
+async def menu_list_view():
+    items = await load_menu()
+    text = ("🧩 <b>Asosiy menyu tugmalari</b>\n\n"
+            "Tugmani bosib rangini, joyini, nomini o'zgartiring yoki yashiring.\n"
+            "🟢 yashil · 🔵 ko'k · 🔴 qizil · ⚪ rangsiz · 🚫 yashirilgan\n"
+            "Ikkita «yarim» tugma yonma-yon turadi, «to'liq» tugma butun qatorni egallaydi.\n"
+            "Yuqoridagi tugma menyuda ham yuqorida turadi.")
+    rows = [[B(mlabel(i) + ("  ▬" if i["w"] == 2 else ""), f"adm:mi:{i['id']}")] for i in items]
+    rows += [[B("➕ Yangi tugma", "adm:mnew")], [B("♻️ Standart holat", "adm:mreset")], [B("⬅️ Panel", "adm:main")]]
+    return text, KB(rows)
+
+
+async def menu_item_view(cid: str):
+    items = await load_menu()
+    it = next((i for i in items if i["id"] == cid), None)
+    if not it:
+        return None, None
+    pos = items.index(it) + 1
+    kind = KIND_NAMES.get(it["kind"], "standart")
+    text = (f"🧩 <b>{html.escape(it['text'])}</b>\n\nTuri: {kind}\nRangi: {STYLE_DOT.get(it['style'], '⚪')}\n"
+            f"Kengligi: {'toʻliq' if it['w'] == 2 else 'yarim'}\nHolati: {'🚫 yashirin' if it.get('hide') else '✅ koʻrinadi'}\n"
+            f"Tartib raqami: {pos}/{len(items)}")
+    if it["kind"] in ("url", "tab", "text"):
+        v = it.get("val", "")
+        text += f"\nQiymati: {html.escape(TABS.get(v, v)[:120])}"
+    rows = [[B("⬆️ Yuqoriga", f"adm:mu:{cid}"), B("⬇️ Pastga", f"adm:md:{cid}")],
+            [B(f"↔️ Kenglik: {'yarim qilish' if it['w'] == 2 else 'toʻliq qilish'}", f"adm:mw:{cid}")],
+            [B("🟢", f"adm:mc:{cid}:success"), B("🔵", f"adm:mc:{cid}:primary"),
+             B("🔴", f"adm:mc:{cid}:danger"), B("⚪", f"adm:mc:{cid}:none")],
+            [B("👁 Ko'rsatish" if it.get("hide") else "🚫 Yashirish", f"adm:mh:{cid}"), B("✏️ Nomi", f"adm:mn:{cid}")]]
+    if it["kind"] in ("url", "text"):
+        rows.append([B("✏️ Qiymatini o'zgartirish", f"adm:mv:{cid}")])
+    if it["kind"] not in BUILTIN_KINDS:
+        rows.append([B("🗑 O'chirish", f"adm:mx:{cid}")])
+    rows.append([B("⬅️ Ro'yxat", "adm:menu")])
+    return text, KB(rows)
+
+
+async def menu_mutate(cid: str, fn):
+    items = await load_menu()
+    i = next((k for k, x in enumerate(items) if x["id"] == cid), None)
+    if i is None:
+        return
+    fn(items, i)
+    await save_menu(items)
+
+
+@router.callback_query(F.data == "adm:menu")
+async def adm_menu(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    text, kb = await menu_list_view()
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data.startswith("adm:mi:"))
+async def adm_mi(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    text, kb = await menu_item_view(c.data.split(":")[2])
+    if not text:
+        text, kb = await menu_list_view()
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data.regexp(r"^adm:m[udwhcx]:"))
+async def adm_menu_op(c: CallbackQuery, state: FSMContext):
+    parts = c.data.split(":")
+    op, cid = parts[1][1], parts[2]
+    if op == "u":
+        def fn(it, i):
+            if i > 0:
+                it[i - 1], it[i] = it[i], it[i - 1]
+    elif op == "d":
+        def fn(it, i):
+            if i < len(it) - 1:
+                it[i + 1], it[i] = it[i], it[i + 1]
+    elif op == "w":
+        def fn(it, i):
+            it[i]["w"] = 1 if it[i]["w"] == 2 else 2
+    elif op == "h":
+        def fn(it, i):
+            it[i]["hide"] = not it[i].get("hide")
+    elif op == "c":
+        st = parts[3] if len(parts) > 3 else ""
+        def fn(it, i):
+            it[i]["style"] = "" if st == "none" else (st if st in ("success", "primary", "danger") else "")
+    else:   # x — o'chirish (faqat o'zi qo'shgan tugmalar)
+        def fn(it, i):
+            if it[i]["kind"] not in BUILTIN_KINDS:
+                del it[i]
+        await menu_mutate(cid, fn)
+        await c.answer("O'chirildi")
+        text, kb = await menu_list_view()
+        return await show(c, text, kb)
+    await menu_mutate(cid, fn)
+    await c.answer()
+    text, kb = await menu_item_view(cid)
+    if not text:
+        text, kb = await menu_list_view()
+    try:
+        await c.message.edit_text(text, reply_markup=kb)
+    except TelegramBadRequest:
+        pass
+
+
+@router.callback_query(F.data.startswith("adm:mn:"))
+async def adm_mn(c: CallbackQuery, state: FSMContext):
+    cid = c.data.split(":")[2]
+    await c.answer()
+    await state.set_state(A.menu_name)
+    await state.update_data(cid=cid)
+    await show(c, "✏️ Tugma uchun yangi nomni yuboring (emoji bilan, eng ko'pi 40 belgi).", back(f"adm:mi:{cid}"))
+
+
+@router.message(A.menu_name)
+async def adm_mn_apply(m: Message, state: FSMContext):
+    name = (m.text or "").strip()
+    if not name or len(name) > 40:
+        return await m.answer("Nom bo'sh yoki 40 belgidan uzun. Qayta yuboring.")
+    cid = (await state.get_data())["cid"]
+    await state.clear()
+    def fn(it, i):
+        it[i]["text"] = name
+    await menu_mutate(cid, fn)
+    text, kb = await menu_item_view(cid)
+    await m.answer("✅ Saqlandi.\n\n" + (text or ""), reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("adm:mv:"))
+async def adm_mv(c: CallbackQuery, state: FSMContext):
+    cid = c.data.split(":")[2]
+    items = await load_menu()
+    it = next((i for i in items if i["id"] == cid), None)
+    if not it or it["kind"] not in ("url", "text"):
+        return await c.answer()
+    await c.answer()
+    await state.set_state(A.menu_val)
+    await state.update_data(cid=cid, kind=it["kind"])
+    await show(c, "🔗 Yangi havolani yuboring (https://...)" if it["kind"] == "url"
+               else "💬 Tugma bosilganda chiqadigan yangi matnni yuboring (eng ko'pi 900 belgi).", back(f"adm:mi:{cid}"))
+
+
+def norm_url(t: str) -> str | None:
+    t = (t or "").strip()
+    if re.match(r"^(https?://|tg://)", t, re.I):
+        return t
+    if re.match(r"^(t\.me/|telegram\.me/)", t, re.I):
+        return "https://" + t
+    if t.startswith("@") and len(t) > 2:
+        return "https://t.me/" + t[1:]
+    return None
+
+
+@router.message(A.menu_val)
+async def adm_mv_apply(m: Message, state: FSMContext):
+    d = await state.get_data()
+    if d["kind"] == "url":
+        val = norm_url(m.text or "")
+        if not val:
+            return await m.answer("Havola noto'g'ri. https://... yoki @username yuboring.")
+    else:
+        val = (m.html_text or "").strip()
+        if not val or len(val) > 900:
+            return await m.answer("Matn bo'sh yoki juda uzun. Qayta yuboring.")
+        try:
+            await m.answer(val)
+        except TelegramBadRequest:
+            return await m.answer("❌ Formatlashda xato. Qayta yuboring.")
+    await state.clear()
+    def fn(it, i):
+        it[i]["val"] = val
+    await menu_mutate(d["cid"], fn)
+    text, kb = await menu_item_view(d["cid"])
+    await m.answer("✅ Saqlandi.\n\n" + (text or ""), reply_markup=kb)
+
+
+@router.callback_query(F.data == "adm:mnew")
+async def adm_mnew(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    await show(c, "➕ <b>Yangi tugma</b>\n\nTugma nima qilsin?",
+               KB([[B("🔗 Havolani ochsin", "adm:mt:url")],
+                   [B("📱 Mini App bo'limini ochsin", "adm:mt:tab")],
+                   [B("💬 Matn ko'rsatsin", "adm:mt:text")],
+                   [B("⬅️ Orqaga", "adm:menu")]]))
+
+
+@router.callback_query(F.data.startswith("adm:mt:"))
+async def adm_mt(c: CallbackQuery, state: FSMContext):
+    kind = c.data.split(":")[2]
+    if kind not in ("url", "tab", "text"):
+        return await c.answer()
+    if len(await load_menu()) >= 24:
+        return await c.answer("Tugmalar soni 24 tadan oshmasin", show_alert=True)
+    await c.answer()
+    await state.set_state(A.menu_new_name)
+    await state.update_data(kind=kind)
+    await show(c, "✏️ Tugma nomini yuboring (emoji bilan, masalan: <code>🛍 Do'kon kanali</code>).", back("adm:mnew"))
+
+
+@router.message(A.menu_new_name)
+async def adm_new_name(m: Message, state: FSMContext):
+    name = (m.text or "").strip()
+    if not name or len(name) > 40:
+        return await m.answer("Nom bo'sh yoki 40 belgidan uzun. Qayta yuboring.")
+    d = await state.get_data()
+    await state.update_data(name=name)
+    if d["kind"] == "tab":
+        await state.set_state(None)
+        return await m.answer("📱 Qaysi bo'lim ochilsin?", reply_markup=KB(
+            [[B(v, f"adm:mtab:{k}")] for k, v in TABS.items()] + [[B("⬅️ Bekor qilish", "adm:menu")]]))
+    await state.set_state(A.menu_new_val)
+    await m.answer("🔗 Havolani yuboring (https://... yoki @username):" if d["kind"] == "url"
+                   else "💬 Tugma bosilganda chiqadigan matnni yuboring (eng ko'pi 900 belgi):")
+
+
+async def add_menu_item(kind: str, name: str, val: str) -> str:
+    items = await load_menu()
+    n = 1
+    ids = {i["id"] for i in items}
+    while f"c{n}" in ids:
+        n += 1
+    cid = f"c{n}"
+    items.append({"id": cid, "kind": kind, "text": name, "style": "primary", "w": 1, "val": val})
+    await save_menu(items)
+    return cid
+
+
+@router.message(A.menu_new_val)
+async def adm_new_val(m: Message, state: FSMContext):
+    d = await state.get_data()
+    if d["kind"] == "url":
+        val = norm_url(m.text or "")
+        if not val:
+            return await m.answer("Havola noto'g'ri. https://... yoki @username yuboring.")
+    else:
+        val = (m.html_text or "").strip()
+        if not val or len(val) > 900:
+            return await m.answer("Matn bo'sh yoki juda uzun. Qayta yuboring.")
+        try:
+            await m.answer(val)
+        except TelegramBadRequest:
+            return await m.answer("❌ Formatlashda xato. Qayta yuboring.")
+    await state.clear()
+    cid = await add_menu_item(d["kind"], d["name"], val)
+    text, kb = await menu_item_view(cid)
+    await m.answer("✅ Tugma qo'shildi (pastga). Joyi va rangini shu yerdan o'zgartiring.\n\n" + (text or ""), reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("adm:mtab:"))
+async def adm_mtab(c: CallbackQuery, state: FSMContext):
+    tab = c.data.split(":")[2]
+    d = await state.get_data()
+    if tab not in TABS or not d.get("name"):
+        return await c.answer("Qaytadan boshlang", show_alert=True)
+    await state.clear()
+    cid = await add_menu_item("tab", d["name"], tab)
+    await c.answer("Qo'shildi")
+    text, kb = await menu_item_view(cid)
+    await show(c, text, kb)
+
+
+@router.callback_query(F.data == "adm:mreset")
+async def adm_mreset(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await c.answer()
+    await show(c, "♻️ Menyu standart holatga qaytariladi, o'zingiz qo'shgan tugmalar o'chadi. Rozimisiz?",
+               KB([[B("✅ Ha, qaytarish", "adm:mreset2")], [B("⬅️ Yo'q", "adm:menu")]]))
+
+
+@router.callback_query(F.data == "adm:mreset2")
+async def adm_mreset2(c: CallbackQuery, state: FSMContext):
+    await save_menu([dict(d) for d in DEFAULT_MENU])
+    await c.answer("Standart holat qaytarildi")
+    text, kb = await menu_list_view()
+    await show(c, text, kb)
 
 
 # ------------------------------------------------------------ Bosh menyu: salom matni va rasm/video

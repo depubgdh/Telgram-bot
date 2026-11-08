@@ -1,5 +1,6 @@
 """Telegram bot: ro'yxatdan o'tish, menyular, balans, to'ldirish, yechish, admin."""
 import html
+import json
 import logging
 from datetime import datetime
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
@@ -119,25 +120,118 @@ DEFAULT_WELCOME = ("Hurmatli <b>{username}</b>! 👋\n\n"
                    "Bu yerda NFT sovg'alarni <b>so'mda ham</b> sotib olishingiz mumkin! 🎁")
 
 
-def main_kb(adm: bool = False, can_sell: bool = False) -> InlineKeyboardMarkup:
-    if config.WEBAPP_URL:   # «Mening buyumlarim» Mini App'ning Buyumlar bo'limini to'g'ridan-to'g'ri ochadi
-        sep = "&" if "?" in config.WEBAPP_URL else "?"
-        items_btn = sbtn("📦 Mening buyumlarim", style="success", web_app=WebAppInfo(url=f"{config.WEBAPP_URL}{sep}tab=items"))
-    else:
-        items_btn = sbtn("📦 Mening buyumlarim", "m:items", "success")
-    rows = [
-        [sbtn("💳 Hisobni to'ldirish", "m:topup", "primary"), sbtn("💸 Yechib olish", "m:withdraw", "primary")],
-        [items_btn, sbtn("📜 Tarix", "m:history")],
-        [sbtn("✔️ Shartnoma tuzish 📝", "m:contract", "danger")],
-        [sbtn("💼 Mening hisoblarim", "m:accounts", "primary")],
-    ]
+# ---- sozlanadigan asosiy menyu (admin panel orqali tahrirlanadi) ----
+STYLE_DOT = {"success": "🟢", "primary": "🔵", "danger": "🔴", "": "⚪"}
+TABS = {"home": "🏠 Bosh sahifa", "nft": "🎁 NFT", "wallet": "💼 Hamyon", "items": "📦 Buyumlar", "friends": "👥 Do'stlar"}
+DEFAULT_MENU = [
+    {"id": "topup", "kind": "topup", "text": "💳 Hisobni to'ldirish", "style": "success", "w": 1},
+    {"id": "withdraw", "kind": "withdraw", "text": "💸 Yechib olish", "style": "success", "w": 1},
+    {"id": "items", "kind": "items", "text": "📦 Mening buyumlarim", "style": "success", "w": 1},
+    {"id": "contract", "kind": "contract", "text": "📝 Shartnoma tuzish", "style": "success", "w": 1},
+    {"id": "history", "kind": "history", "text": "📜 Tarix", "style": "success", "w": 1},
+    {"id": "accounts", "kind": "accounts", "text": "💼 Mening hisoblarim", "style": "primary", "w": 1},
+    {"id": "app", "kind": "app", "text": "📱 Open App", "style": "", "w": 2},
+]
+BUILTIN_KINDS = {d["id"] for d in DEFAULT_MENU}
+
+
+async def load_menu() -> list[dict]:
+    """Saqlangan menyu; xato bo'lsa yoki yangi standart tugma qo'shilgan bo'lsa to'ldiriladi."""
+    items = []
+    try:
+        raw = json.loads(await get_str_setting("menu_cfg", "") or "null")
+        if isinstance(raw, list):
+            for it in raw:
+                if isinstance(it, dict) and it.get("id") and it.get("kind") and it.get("text"):
+                    if it["kind"] in BUILTIN_KINDS and it["id"] != it["kind"]:
+                        continue
+                    if it["kind"] not in BUILTIN_KINDS and it["kind"] not in ("url", "tab", "text"):
+                        continue
+                    it["style"] = it.get("style", "") if it.get("style", "") in STYLE_DOT else ""
+                    it["w"] = 2 if it.get("w") == 2 else 1
+                    items.append(it)
+    except Exception:
+        log.exception("menu_cfg o'qilmadi")
+        items = []
+    if not items:
+        return [dict(d) for d in DEFAULT_MENU]
+    have = {i["id"] for i in items}
+    for d in DEFAULT_MENU:
+        if d["id"] not in have:
+            items.append({**d, "hide": True})   # yangi standart tugma — admin yoqmaguncha yashirin
+    return items
+
+
+async def save_menu(items: list[dict]):
+    await set_setting("menu_cfg", json.dumps(items, ensure_ascii=False))
+
+
+def menu_button(it: dict) -> InlineKeyboardButton | None:
+    kind, text, style = it["kind"], it["text"], it.get("style") or None
+    sep = "&" if "?" in (config.WEBAPP_URL or "") else "?"
+    if kind == "app":
+        return sbtn(text, style=style, web_app=WebAppInfo(url=config.WEBAPP_URL)) if config.WEBAPP_URL else None
+    if kind == "items":
+        if config.WEBAPP_URL:
+            return sbtn(text, style=style, web_app=WebAppInfo(url=f"{config.WEBAPP_URL}{sep}tab=items"))
+        return sbtn(text, "m:items", style)
+    if kind == "url":
+        return sbtn(text, style=style, url=it.get("val", ""))
+    if kind == "tab":
+        if not config.WEBAPP_URL:
+            return None
+        return sbtn(text, style=style, web_app=WebAppInfo(url=f"{config.WEBAPP_URL}{sep}tab={it.get('val', 'home')}"))
+    if kind == "text":
+        return sbtn(text, f"mc:{it['id']}", style)
+    return sbtn(text, f"m:{kind}", style)
+
+
+async def main_kb(adm: bool = False, can_sell: bool = False) -> InlineKeyboardMarkup:
+    rows, buf = [], None
+    for it in await load_menu():
+        if it.get("hide"):
+            continue
+        try:
+            btn = menu_button(it)
+        except Exception:
+            log.exception("menyu tugmasi")
+            continue
+        if btn is None:
+            continue
+        if it["w"] == 2:
+            if buf:
+                rows.append([buf]); buf = None
+            rows.append([btn])
+        elif buf:
+            rows.append([buf, btn]); buf = None
+        else:
+            buf = btn
+    if buf:
+        rows.append([buf])
     if can_sell:
         rows.append([sbtn("🏷️ NFT Sotish", "sell:menu")])
     if adm:
         rows.append([sbtn("👑 Admin panel", "adm:main")])
-    if config.WEBAPP_URL:
-        rows.append([InlineKeyboardButton(text="📱 Mini App", web_app=WebAppInfo(url=config.WEBAPP_URL))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+@router.callback_query(F.data.startswith("mc:"))
+async def menu_text_btn(c: CallbackQuery):
+    """Admin qo'shgan «matn» tugmasi bosilganda matnni ko'rsatadi."""
+    cid = c.data[3:]
+    it = next((i for i in await load_menu() if i["id"] == cid and i["kind"] == "text"), None)
+    await c.answer()
+    if not it:
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⬅️ Orqaga", callback_data="m:main")]])
+    try:
+        await c.message.edit_text(it.get("val") or it["text"], reply_markup=kb)
+    except Exception:
+        try:
+            await c.message.delete()
+        except Exception:
+            pass
+        await c.message.answer(it.get("val") or it["text"], reply_markup=kb)
 
 
 def fmt_ton(n) -> str:
@@ -260,7 +354,7 @@ async def show_main(target: Message | CallbackQuery, tg_id: int):
         tpl = await get_str_setting("welcome_text", DEFAULT_WELCOME)
         greet = tpl.replace("{username}", html.escape(who)).replace("{name}", html.escape(first))
         text = f"{greet}\n\n{await header(u)}"
-        kb = main_kb(adm, u.can_sell)
+        kb = await main_kb(adm, u.can_sell)
         media_id = await get_str_setting("welcome_media_id")
         media_type = await get_str_setting("welcome_media_type", "photo")
     msg = target.message if isinstance(target, CallbackQuery) else target

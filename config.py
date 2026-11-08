@@ -33,7 +33,8 @@ def _normalize_db(url: str) -> str:
 
 
 DATABASE_URL = _normalize_db(os.getenv("DATABASE_URL", ""))
-WEBAPP_URL = os.getenv("WEBAPP_URL", "")
+# WEBAPP_URL berilmasa, Render o'zi beradigan manzil (RENDER_EXTERNAL_URL) ishlatiladi
+WEBAPP_URL = (os.getenv("WEBAPP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
 CARD_NUMBER = os.getenv("CARD_NUMBER", "")
 CARD_OWNER = os.getenv("CARD_OWNER", "")
 TON_WALLET = os.getenv("TON_WALLET", "UQDMEZGxsvL3KpnwEDpROJ3uIG052mNHSwZ8MnwE_OczuqIP")
